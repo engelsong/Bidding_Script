@@ -14,7 +14,8 @@ class Content:
     normal_font = Font(name='仿宋_GB2312', size=14)
     sub_font = Font(name='仿宋_GB2312', size=12)
     header_border = Border(bottom=Side(style='medium'))
-    normal_border = Border(bottom=Side(style='thin', color='80969696'))
+    normal_border = Border(top=Side(style='thin', color='80969696'),
+                           bottom=Side(style='thin', color='80969696'))
     thin_border = Border(
         left=Side(style='thin', color='80969696'),
         right=Side(style='thin', color='80969696'),
@@ -64,7 +65,7 @@ class Content:
         seq = sorted(self.project.commodities.keys())
         for index in seq:
             item = self.project.commodities[index]
-            rows.append(('sub', index, item[0]))
+            rows.append(('sub', item[-1], item[0]))
 
         tech_items = [
             '质量保证声明',
@@ -111,22 +112,22 @@ class Content:
     def generate_content(self, filename=None):
         wb = Workbook()
         ws = wb.active
-        ws.title = '总'
+        ws.title = '总目录'
 
-        ws.column_dimensions['A'].width = 13.125
-        ws.column_dimensions['B'].width = 58.125
-        ws.column_dimensions['C'].width = 18.25
+        ws.column_dimensions['A'].width = 14
+        ws.column_dimensions['B'].width = 72
+        ws.column_dimensions['C'].width = 20
 
         ws.merge_cells('A1:C1')
         ws['A1'] = '目  录'
         ws['A1'].font = self.title_font
         ws['A1'].alignment = self.ctr_alignment
-        ws.row_dimensions[1].height = 31.5
+        ws.row_dimensions[1].height = 35
 
         ws['A2'] = '序号'
         ws['B2'] = '内容'
         ws['C2'] = '页码'
-        ws.row_dimensions[2].height = 18.75
+        ws.row_dimensions[2].height = 25
         for col in ('A', 'B', 'C'):
             cell = ws[f'{col}2']
             cell.font = self.header_font
@@ -136,7 +137,7 @@ class Content:
         row = 3
         for item in self._section_rows():
             kind = item[0]
-            ws.row_dimensions[row].height = 18.75
+            ws.row_dimensions[row].height = 20
 
             if kind == 'section':
                 ws.merge_cells(f'A{row}:B{row}')
@@ -235,7 +236,7 @@ class Content:
         ws2.page_margins = PageMargins(left=0.75, right=0.75, top=0.5, bottom=0.5, header=0.1, footer=0.1)
 
         if not filename:
-            filename = f'content-{self._safe_name(self.project.name)}.xlsx'
+            filename = f'目录-{self._safe_name(self.project.name)}.xlsx'
         wb.save(filename)
         return filename
 
