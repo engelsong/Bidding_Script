@@ -2,11 +2,12 @@ from project import Project
 from directory import Directory
 from cover import Cover
 from content import Content
+from quotation import Quotation
 from os import listdir
 import re
 
 
-doc_pattern = re.compile('^project.*\.docx$')
+doc_pattern = re.compile(r"^project.*\.docx$")
 doc_name = None
 for doc in listdir():
     if re.match(doc_pattern, doc):
@@ -22,8 +23,11 @@ project = Project(doc_name)
 # except FileExistsError:
 #     pass
 
-content = Content(project)
-content.generate_content()
+# content = Content(project)
+# content.generate_content()
+
+quotation = Quotation(project)
+quotation.generate()
 
 # cover = Cover(project)
 # cover.generate()
