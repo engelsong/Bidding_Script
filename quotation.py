@@ -160,13 +160,13 @@ class Quotation:
         keys = sorted(items.keys())
         for key in keys:
             idx = key + 1
-            ws[f"A{idx}"] = item[key][-1]
-            ws[f"B{idx}"] = item[key][0]
-            ws[f"C{idx}"] = item[key][1]
-            ws[f"D{idx}"] = self._parse_quantity(item[key][2])
-            ws[f"E{idx}"] = item[key][3]
-            ws[f"F{idx}"] = item[key][4]
-            ws[f"G{idx}"] = item[key][5]
+            ws[f"A{idx}"] = items[key][-1]
+            ws[f"B{idx}"] = items[key][0]
+            ws[f"C{idx}"] = items[key][1]
+            ws[f"D{idx}"] = self._parse_quantity(items[key][2])
+            ws[f"E{idx}"] = items[key][3]
+            ws[f"F{idx}"] = items[key][4]
+            ws[f"G{idx}"] = items[key][5]
             ws[f"H{idx}"] = ""
             ws[f"I{idx}"] = ""
             ws[f"J{idx}"] = 0
@@ -198,16 +198,29 @@ class Quotation:
             ws[f"AJ{idx}"] = ""
             self._style_row(ws, idx, 1, len(headers), header=False)
             ws[f"F{idx}"].alignment = self.left
-            ws.row_dimensions[idx].height = max(24, min(120, (str(item[key][4]).count("\n") + 1) * 16))
+            ws.row_dimensions[idx].height = max(24, min(120, (str(items[key][4]).count("\n") + 1) * 16))
 
-    def _build_selector(self, ws, items: List[Dict]) -> None:
+    def _build_selector(self, ws, items: Dict) -> None:
         ws.title = "物资选择"
         self._set_columns(ws, {"A": 8, "B": 28, "C": 10})
-        for i, item in enumerate(items, start=1):
-            ws[f"A{i}"] = item["serial"]
-            ws[f"B{i}"] = item["name"]
-            ws[f"C{i}"] = i + 1  # 对应“全部厂家备用”的行号
-            self._style_row(ws, i, 1, 3, header=False)
+        keys = sorted(items.keys())
+        row_num = len(keys) + 5
+        for key in keys:
+            range_a = f"全部厂家备用!A$1:A${row_num}"
+            range_b = f"全部厂家备用!B$1:B${row_num}"
+            range_ad = f"全部厂家备用!AD$1:AD${row_num}"
+            ws[f"A{key}"] = items[key][-1]
+            ws[f"B{key}"] = items[key][0]
+            ws[f"C{key}"] = (
+                f'=LET('
+                f'k,A{key}&B{key}&"1",'
+                f'la,{range_a},'
+                f'lb,{range_b},'
+                f'lad,{range_ad},'
+                f'XLOOKUP(k,la&lb&lad,ROW(lad),"Null",0)'
+                f')'
+            )
+            self._style_row(ws, key, 1, 3, header=False)
 
     def _build_fee_input(self, ws) -> None:
         ws.title = "费用输入"
@@ -632,13 +645,13 @@ class Quotation:
 
         self._build_all_suppliers(ws_all, items)
         self._build_selector(ws_pick, items)
-        self._build_fee_input(ws_fee)
-        inner_total_row = self._build_inner_quote(ws_inner, len(items))
-        tax_total_row = self._build_tax_sheet(ws_tax, len(items), inner_total_row)
-        self._build_tech_sheet(ws_tech)
-        self._build_train_sheet(ws_train)
-        self._build_total_sheet(ws_total, inner_total_row, tax_total_row, bid_date)
-        self._build_opening_sheet(ws_open, bid_date)
+        # self._build_fee_input(ws_fee)
+        # inner_total_row = self._build_inner_quote(ws_inner, len(items))
+        # tax_total_row = self._build_tax_sheet(ws_tax, len(items), inner_total_row)
+        # self._build_tech_sheet(ws_tech)
+        # self._build_train_sheet(ws_train)
+        # self._build_total_sheet(ws_total, inner_total_row, tax_total_row, bid_date)
+        # self._build_opening_sheet(ws_open, bid_date)
 
         wb.calculation.fullCalcOnLoad = True
         if not filename:
