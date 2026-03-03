@@ -73,7 +73,7 @@ class Quotation:
             if header:
                 cell.fill = self.header_fill
 
-    def _build_all_suppliers(self, ws, items: List[Dict]) -> None:
+    def _build_all_suppliers(self, ws, items: Dict) -> None:
         ws.title = "全部厂家备用"
         self._set_columns(
             ws,
@@ -157,14 +157,16 @@ class Quotation:
         ws.append(headers)
         self._style_row(ws, 1, 1, len(headers), header=True)
 
-        for idx, item in enumerate(items, start=2):
-            ws[f"A{idx}"] = item["serial"]
-            ws[f"B{idx}"] = item["name"]
-            ws[f"C{idx}"] = item["hs"]
-            ws[f"D{idx}"] = item["qty"]
-            ws[f"E{idx}"] = item["unit"]
-            ws[f"F{idx}"] = item["spec"]
-            ws[f"G{idx}"] = item["standard"]
+        keys = sorted(items.keys())
+        for key in keys:
+            idx = key + 1
+            ws[f"A{idx}"] = item[key][-1]
+            ws[f"B{idx}"] = item[key][0]
+            ws[f"C{idx}"] = item[key][1]
+            ws[f"D{idx}"] = self._parse_quantity(item[key][2])
+            ws[f"E{idx}"] = item[key][3]
+            ws[f"F{idx}"] = item[key][4]
+            ws[f"G{idx}"] = item[key][5]
             ws[f"H{idx}"] = ""
             ws[f"I{idx}"] = ""
             ws[f"J{idx}"] = 0
@@ -173,8 +175,8 @@ class Quotation:
             ws[f"M{idx}"] = ""
             ws[f"N{idx}"] = "无"
             ws[f"O{idx}"] = "无"
-            ws[f"P{idx}"] = self.project.destination
-            ws[f"Q{idx}"] = self.project.trans_time
+            ws[f"P{idx}"] = ""
+            ws[f"Q{idx}"] = ""
             ws[f"R{idx}"] = ""
             ws[f"S{idx}"] = ""
             ws[f"T{idx}"] = ""
@@ -185,7 +187,7 @@ class Quotation:
             ws[f"Y{idx}"] = ""
             ws[f"Z{idx}"] = ""
             ws[f"AA{idx}"] = ""
-            ws[f"AB{idx}"] = ""
+            ws[f"AB{idx}"] = "-"
             ws[f"AC{idx}"] = ""
             ws[f"AD{idx}"] = 1
             ws[f"AE{idx}"] = ""
@@ -196,7 +198,7 @@ class Quotation:
             ws[f"AJ{idx}"] = ""
             self._style_row(ws, idx, 1, len(headers), header=False)
             ws[f"F{idx}"].alignment = self.left
-            ws.row_dimensions[idx].height = max(24, min(120, (str(item["spec"]).count("\n") + 1) * 16))
+            ws.row_dimensions[idx].height = max(24, min(120, (str(item[key][4]).count("\n") + 1) * 16))
 
     def _build_selector(self, ws, items: List[Dict]) -> None:
         ws.title = "物资选择"

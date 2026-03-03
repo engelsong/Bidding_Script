@@ -141,6 +141,7 @@ class Project(object):
     #         # for j in self.commodities2[i]:
     #         #     print(j)
 
-# project = Project("project.docx")
-# project.show_info()
-            
+project = Project("project-[Project Name].docx")
+project.show_info()
+project.show_commodity()
+#
