@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import copy
 import re
 from datetime import date, datetime
+from pathlib import Path
 from typing import Dict, List, Optional
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 
@@ -216,25 +218,77 @@ class Quotation:
             ws[f"C{key}"] = f'=MATCH(A{key}&B{key}&1,全部厂家备用!AL$1:AL${row_num},0)'
             self._style_row(ws, key, 1, 3, header=False)
 
+
     def _build_fee_input(self, ws) -> None:
-        ws.title = "费用输入"
-        self._set_columns(ws, {"A": 24, "B": 18})
-        rows = [
-            ("项目", "金额"),
-            ("物资检验费", 0),
-            ("运输保险费", 0),
-            ("国外运费", 0),
-            ("安防费", 0),
-            ("税金费率", 0.0003),
-            ("对外金额", float(self.project.totalsum)),
-            ("资金占用时间(月)", 0),
-            ("年化利率", 0.0),
-            ("资金占用费", "=ROUND(B7*B8/12*B9,2)"),
-        ]
-        for r, (name, val) in enumerate(rows, start=1):
-            ws[f"A{r}"] = name
-            ws[f"B{r}"] = val
-            self._style_row(ws, r, 1, 2, header=(r == 1))
+        ws.title = "\u8fd0\u8d39\u8ba1\u7b97"
+
+        template_path = Path(__file__).with_name("\u8fd0\u8d39\u8ba1\u7b97.xlsx")
+        template_wb = load_workbook(template_path)
+        fee_sheet_name = "\u8fd0\u8d39\u8ba1\u7b97"
+        template_ws = template_wb[fee_sheet_name] if fee_sheet_name in template_wb.sheetnames else template_wb.active
+
+        ws.sheet_format = copy.copy(template_ws.sheet_format)
+        ws.sheet_properties = copy.copy(template_ws.sheet_properties)
+        ws.page_margins = copy.copy(template_ws.page_margins)
+        ws.page_setup = copy.copy(template_ws.page_setup)
+        ws.print_options = copy.copy(template_ws.print_options)
+        ws.sheet_view = copy.copy(template_ws.sheet_view)
+        ws.freeze_panes = template_ws.freeze_panes
+        ws.auto_filter = copy.copy(template_ws.auto_filter)
+        ws.print_title_cols = template_ws.print_title_cols
+        ws.print_title_rows = template_ws.print_title_rows
+
+        for col_key, col_dim in template_ws.column_dimensions.items():
+            ws.column_dimensions[col_key] = copy.copy(col_dim)
+        for row_key, row_dim in template_ws.row_dimensions.items():
+            ws.row_dimensions[row_key] = copy.copy(row_dim)
+
+        for merged_range in template_ws.merged_cells.ranges:
+            ws.merge_cells(str(merged_range))
+
+        for row in template_ws.iter_rows(
+            min_row=1,
+            max_row=template_ws.max_row,
+            min_col=1,
+            max_col=template_ws.max_column,
+        ):
+            for cell in row:
+                target = ws.cell(row=cell.row, column=cell.column, value=cell.value)
+                if cell.has_style:
+                    target._style = copy.copy(cell._style)
+                if cell.number_format is not None:
+                    target.number_format = cell.number_format
+                if cell.protection is not None:
+                    target.protection = copy.copy(cell.protection)
+                if cell.alignment is not None:
+                    target.alignment = copy.copy(cell.alignment)
+                if cell.comment is not None:
+                    target.comment = copy.copy(cell.comment)
+                if cell.hyperlink is not None:
+                    target.hyperlink = copy.copy(cell.hyperlink)
+
+        for data_validation in template_ws.data_validations.dataValidation:
+            ws.add_data_validation(copy.copy(data_validation))
+
+        ws.conditional_formatting = copy.copy(template_ws.conditional_formatting)
+
+        items = self.project.commodities
+        keys = sorted(items.keys())
+        data_start_row = 3
+        data_end_row = 14
+        for row_num in range(data_start_row, data_end_row + 1):
+            idx = row_num - data_start_row
+            if idx < len(keys):
+                key = keys[idx]
+                ws[f"M{row_num}"] = items[key][-1]
+                ws[f"N{row_num}"] = items[key][0]
+                ws[f"O{row_num}"] = self._parse_quantity(items[key][2])
+            else:
+                ws[f"M{row_num}"] = None
+                ws[f"N{row_num}"] = None
+                ws[f"O{row_num}"] = None
+
+        template_wb.close()
 
     def _build_inner_quote(self, ws, item_count: int) -> int:
         ws.title = "2.物资对内分项报价表"
@@ -628,7 +682,7 @@ class Quotation:
 
         wb = Workbook()
         ws_all = wb.active
-        # ws_fee = wb.create_sheet("费用输入")
+        ws_fee = wb.create_sheet("费用输入")
         # ws_open = wb.create_sheet("3.开标一览表")
         # ws_total = wb.create_sheet("1.投标报价总表")
         # ws_inner = wb.create_sheet("2.物资对内分项报价表")
@@ -639,7 +693,7 @@ class Quotation:
 
         self._build_all_suppliers(ws_all, items)
         self._build_selector(ws_pick, items)
-        # self._build_fee_input(ws_fee)
+        self._build_fee_input(ws_fee)
         # inner_total_row = self._build_inner_quote(ws_inner, len(items))
         # tax_total_row = self._build_tax_sheet(ws_tax, len(items), inner_total_row)
         # self._build_tech_sheet(ws_tech)
