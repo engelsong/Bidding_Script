@@ -196,6 +196,7 @@ class Quotation:
             ws[f"AH{idx}"] = ""
             ws[f"AI{idx}"] = ""
             ws[f"AJ{idx}"] = ""
+            ws[f"AL{idx}"] = f"=A{idx}&B{idx}&AD{idx}"
             self._style_row(ws, idx, 1, len(headers), header=False)
             ws[f"F{idx}"].alignment = self.left
             ws.row_dimensions[idx].height = max(24, min(120, (str(items[key][4]).count("\n") + 1) * 16))
@@ -211,15 +212,8 @@ class Quotation:
             range_ad = f"全部厂家备用!AD$1:AD${row_num}"
             ws[f"A{key}"] = items[key][-1]
             ws[f"B{key}"] = items[key][0]
-            ws[f"C{key}"] = (
-                f'=LET('
-                f'k,A{key}&B{key}&"1",'
-                f'la,{range_a},'
-                f'lb,{range_b},'
-                f'lad,{range_ad},'
-                f'XLOOKUP(k,la&lb&lad,ROW(lad),"Null",0)'
-                f')'
-            )
+            # ws[f"F{key}"] = f"=A{key}&B{key}&1"
+            ws[f"C{key}"] = f'=MATCH(A{key}&B{key}&1,全部厂家备用!AL$1:AL${row_num},0)'
             self._style_row(ws, key, 1, 3, header=False)
 
     def _build_fee_input(self, ws) -> None:
