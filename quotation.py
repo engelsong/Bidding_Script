@@ -464,8 +464,8 @@ class Quotation:
             "K16": "=SUM(K3:K15)",
             "G17": 7,
             f"M{row_num}": "合计",
-            f"T{row_num}": f"=SUM(T3:T{row_num})",
-            f"V{row_num}": f"=SUM(V3:V{row_num})",
+            f"T{row_num}": f"=SUM(T3:T{row_num - 1})",
+            f"V{row_num}": f"=SUM(V3:V{row_num - 1})",
         }
         for cell_ref, value in entries.items():
             ws[cell_ref] = value
