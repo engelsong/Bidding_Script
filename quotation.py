@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import copy
 import re
 from datetime import date, datetime
-from pathlib import Path
 from typing import Dict, List, Optional
 
-from openpyxl import Workbook, load_workbook
+from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.workbook.properties import CalcProperties
+
 
 
 class Quotation:
@@ -209,86 +209,278 @@ class Quotation:
         keys = sorted(items.keys())
         row_num = len(keys) + 5
         for key in keys:
-            range_a = f"全部厂家备用!A$1:A${row_num}"
-            range_b = f"全部厂家备用!B$1:B${row_num}"
-            range_ad = f"全部厂家备用!AD$1:AD${row_num}"
             ws[f"A{key}"] = items[key][-1]
             ws[f"B{key}"] = items[key][0]
-            # ws[f"F{key}"] = f"=A{key}&B{key}&1"
             ws[f"C{key}"] = f'=MATCH(A{key}&B{key}&1,全部厂家备用!AL$1:AL${row_num},0)'
             self._style_row(ws, key, 1, 3, header=False)
 
 
-    def _build_fee_input(self, ws) -> None:
-        ws.title = "\u8fd0\u8d39\u8ba1\u7b97"
+    def _build_fee_input(self, ws, items: Dict) -> None:
+        ws.title = "运费输入"
+        row_num = len(items) + 3
 
-        template_path = Path(__file__).with_name("\u8fd0\u8d39\u8ba1\u7b97.xlsx")
-        template_wb = load_workbook(template_path)
-        fee_sheet_name = "\u8fd0\u8d39\u8ba1\u7b97"
-        template_ws = template_wb[fee_sheet_name] if fee_sheet_name in template_wb.sheetnames else template_wb.active
+        self._set_columns(
+            ws,
+            {
+                "A": 14.0,
+                "B": 13.125,
+                "C": 13.875,
+                "D": 9.25,
+                "E": 16.125,
+                "F": 6.75,
+                "G": 15.125,
+                "H": 16.0,
+                "I": 11.625,
+                "J": 8.0,
+                "K": 19.25,
+                "L": 7.375,
+                "M": 6.0,
+                "N": 24.375,
+                "O": 10.0,
+                "P": 10.75,
+                "T": 14.375,
+                "U": 16.0,
+                "V": 14.375,
+                "W": 9.75,
+            },
+        )
 
-        ws.sheet_format = copy.copy(template_ws.sheet_format)
-        ws.sheet_properties = copy.copy(template_ws.sheet_properties)
-        ws.page_margins = copy.copy(template_ws.page_margins)
-        ws.page_setup = copy.copy(template_ws.page_setup)
-        ws.print_options = copy.copy(template_ws.print_options)
-        ws.sheet_view = copy.copy(template_ws.sheet_view)
-        ws.freeze_panes = template_ws.freeze_panes
-        ws.auto_filter = copy.copy(template_ws.auto_filter)
-        ws.print_title_cols = template_ws.print_title_cols
-        ws.print_title_rows = template_ws.print_title_rows
+        ws.row_dimensions[1].height = 29.25
+        for r in range(2, row_num + 1):
+            ws.row_dimensions[r].height = 24.0
 
-        for col_key, col_dim in template_ws.column_dimensions.items():
-            ws.column_dimensions[col_key] = copy.copy(col_dim)
-        for row_key, row_dim in template_ws.row_dimensions.items():
-            ws.row_dimensions[row_key] = copy.copy(row_dim)
 
-        for merged_range in template_ws.merged_cells.ranges:
-            ws.merge_cells(str(merged_range))
+        merged_ranges = [
+            "A1:E1",
+            "G1:K1",
+            "M1:W1",
+            "B2:C2",
+            "H2:I2",
+            "A3:A5",
+            "A6:A8",
+            "A9:A11",
+            "A16:A17",
+            "A18:D18",
+            "G3:G5",
+            "G6:G8",
+            "G9:G11",
+            "G12:G13",
+            "G14:G15",
+            "G17:K17",
+            # f"M{row_num}:N{row_num}",
+        ]
+        for rng in merged_ranges:
+            ws.merge_cells(rng)
 
-        for row in template_ws.iter_rows(
-            min_row=1,
-            max_row=template_ws.max_row,
-            min_col=1,
-            max_col=template_ws.max_column,
-        ):
-            for cell in row:
-                target = ws.cell(row=cell.row, column=cell.column, value=cell.value)
-                if cell.has_style:
-                    target._style = copy.copy(cell._style)
-                if cell.number_format is not None:
-                    target.number_format = cell.number_format
-                if cell.protection is not None:
-                    target.protection = copy.copy(cell.protection)
-                if cell.alignment is not None:
-                    target.alignment = copy.copy(cell.alignment)
-                if cell.comment is not None:
-                    target.comment = copy.copy(cell.comment)
-                if cell.hyperlink is not None:
-                    target.hyperlink = copy.copy(cell.hyperlink)
+        # Base grid border/alignment for the three visible blocks.
+        for row in range(1, 19):
+            for col in range(1, 6):
+                c = ws.cell(row=row, column=col)
+                c.border = self.border
+                if col == 5:
+                    c.alignment = self.right
+                else:
+                    c.alignment = self.center
+                c.font = self.normal_font
+                if col == 3 or col == 5:
+                    c.number_format = '¥#,##0.00'
 
-        for data_validation in template_ws.data_validations.dataValidation:
-            ws.add_data_validation(copy.copy(data_validation))
+        for row in range(1, 18):
+            for col in range(7, 12):
+                c = ws.cell(row=row, column=col)
+                c.border = self.border
+                if col == 11:
+                    c.alignment = self.right
+                else:
+                    c.alignment = self.center
+                c.font = self.normal_font
+                if col == 9 or col == 11:
+                    c.number_format = '¥#,##0.00'
 
-        ws.conditional_formatting = copy.copy(template_ws.conditional_formatting)
+        for row in range(1, row_num + 1):
+            for col in range(13, 24):
+                c = ws.cell(row=row, column=col)
+                c.border = self.border
+                c.alignment = self.center
+                c.font = self.normal_font
+        ws["G17"].number_format = '"运输汇率："0.0000'
 
-        items = self.project.commodities
+        # Section headers and row-2 headers use dark gray fill.
+        header_cells = [
+            "A1", "G1", "M1", "A2", "B2", "D2", "E2", "G2", "H2", "J2", "K2", "M2", "N2", "O2", "P2", "Q2",
+            "R2", "S2", "T2", "U2", "V2", "w2",
+        ]
+        for cell_ref in header_cells:
+            ws[cell_ref].fill = self.header_fill
+            ws[cell_ref].font = self.header_font
+
+        entries = {
+            "A1": "国内运费",
+            "G1": "国外运费",
+            "M1": "运输尺寸",
+            "A2": "项目",
+            "B2": "单价",
+            "D2": "数量",
+            "E2": "总金额",
+            "G2": "项目",
+            "H2": "单价",
+            "J2": "数量",
+            "K2": "总金额",
+            "M2": "序号",
+            "N2": "品名",
+            "O2": "数量",
+            "P2": "件数",
+            "Q2": "长(m)",
+            "R2": "宽(m)",
+            "S2": "高(m)",
+            "T2": "总体积（m³）",
+            "U2": "单重（kg）",
+            "V2": "总重（kg）",
+            "W2": "备注",
+            "A3": "装箱费",
+            "B3": "20GP",
+            "C3": 0,
+            "D3": "=J3",
+            "E3": "=C3*D3",
+            "B4": "40GP/HQ",
+            "C4": 0,
+            "D4": "=J4",
+            "E4": "=C4*D4",
+            "B5": "40FR",
+            "C5": 0,
+            "D5": "=J5",
+            "E5": "=C5*D5",
+            "A6": "港杂费",
+            "B6": "20GP",
+            "C6": 0,
+            "D6": "=J3",
+            "E6": "=C6*D6",
+            "B7": "40GP/HQ",
+            "C7": 0,
+            "D7": "=J4",
+            "E7": "=C7*D7",
+            "B8": "40FR",
+            "C8": 0,
+            "D8": "=J5",
+            "E8": "=C8*D8",
+            "A9": "云邸报告非",
+            "B9": "20GP",
+            "C9": 0,
+            "D9": "=J3",
+            "E9": "=C9*D9",
+            "B10": "40GP/HQ",
+            "C10": 0,
+            "D10": "=J4",
+            "E10": "=C10*D10",
+            "B11": "40FR",
+            "C11": 0,
+            "D11": "=J5",
+            "E11": "=C11*D11",
+            "A12": "加固费",
+            "B12": "每箱",
+            "C12": 600,
+            "D12": 0,
+            "E12": "=C12*D12",
+            "A13": "舱单费",
+            "B13": "每票",
+            "C13": 100,
+            "D13": 0,
+            "E13": "=C13*D13",
+            "A14": "文件费",
+            "B14": "每票",
+            "C14": 500,
+            "D14": 0,
+            "E14": "=C14*D14",
+            "A15": "报关费",
+            "B15": "每票",
+            "C15": 300,
+            "D15": 0,
+            "E15": "=C15*D15",
+            "A16": "其他",
+            "C16": 0,
+            "D16": 0,
+            "E16": "=C16*D16",
+            "C17": 0,
+            "D17": 0,
+            "E17": "=C17*D17",
+            "A18": "合计",
+            "E18": "=SUM(E3:E17)",
+            "G3": "海运费",
+            "H3": "20GP",
+            "I3": 0,
+            "J3": 0,
+            "K3": "=I3*J3*G17",
+            "H4": "40GP/HQ",
+            "I4": 0,
+            "J4": 0,
+            "K4": "=I4*J4*G17",
+            "H5": "40FR",
+            "I5": 0,
+            "J5": 0,
+            "K5": "=I5*J5*G17",
+            "G6": "DTHC",
+            "H6": "20GP",
+            "I6": 0,
+            "J6": "=J3",
+            "K6": "=I6*J6*G17",
+            "H7": "40GP/HQ",
+            "I7": 0,
+            "J7": "=J4",
+            "K7": "=I7*J7*G17",
+            "H8": "40FR",
+            "I8": 0,
+            "J8": "=J5",
+            "K8": "=I8*J8*G17",
+            "G9": "境外陆运",
+            "H9": "20GP",
+            "I9": 0,
+            "J9": "=J3",
+            "K9": "=I9*J9*G17",
+            "H10": "40GP/HQ",
+            "I10": 0,
+            "J10": "=J4",
+            "K10": "=I10*J10*G17",
+            "H11": "40FR",
+            "I11": 0,
+            "J11": "=J5",
+            "K11": "=I11*J11*G17",
+            "G12": "电子跟踪单",
+            "H12": "5个以内",
+            "I12": 0,
+            "J12": 0,
+            "K12": "=I12*J12*G17",
+            "H13": "超过5个",
+            "I13": 0,
+            "J13": 0,
+            "K13": "=I13*J13*G17",
+            "G14": "其他",
+            "I14": 0,
+            "J14": 0,
+            "K14": "=I14*J14*G17",
+            "I15": 0,
+            "J15": 0,
+            "K15": "=I15*J15*G17",
+            "G16": "合计",
+            "K16": "=SUM(K3:K15)",
+            "G17": 7,
+            f"M{row_num}": "合计",
+            f"T{row_num}": f"=SUM(T3:T{row_num})",
+            f"V{row_num}": f"=SUM(V3:V{row_num})",
+        }
+        for cell_ref, value in entries.items():
+            ws[cell_ref] = value
+
+        # Populate M/N/O from project commodities (rows 3-14).
+
         keys = sorted(items.keys())
-        data_start_row = 3
-        data_end_row = 14
-        for row_num in range(data_start_row, data_end_row + 1):
-            idx = row_num - data_start_row
+        for row in range(3, row_num):
+            idx = row - 3
             if idx < len(keys):
                 key = keys[idx]
-                ws[f"M{row_num}"] = items[key][-1]
-                ws[f"N{row_num}"] = items[key][0]
-                ws[f"O{row_num}"] = self._parse_quantity(items[key][2])
-            else:
-                ws[f"M{row_num}"] = None
-                ws[f"N{row_num}"] = None
-                ws[f"O{row_num}"] = None
+                ws[f"M{row}"] = items[key][-1]
+                ws[f"N{row}"] = items[key][0]
+                ws[f"O{row}"] = self._parse_quantity(items[key][2])
 
-        template_wb.close()
 
     def _build_inner_quote(self, ws, item_count: int) -> int:
         ws.title = "2.物资对内分项报价表"
@@ -693,7 +885,7 @@ class Quotation:
 
         self._build_all_suppliers(ws_all, items)
         self._build_selector(ws_pick, items)
-        self._build_fee_input(ws_fee)
+        self._build_fee_input(ws_fee, items)
         # inner_total_row = self._build_inner_quote(ws_inner, len(items))
         # tax_total_row = self._build_tax_sheet(ws_tax, len(items), inner_total_row)
         # self._build_tech_sheet(ws_tech)
