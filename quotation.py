@@ -482,6 +482,201 @@ class Quotation:
                 ws[f"O{row}"] = self._parse_quantity(items[key][2])
 
 
+    def _build_other_fees(self, ws) -> None:
+        ws.title = "其他费用"
+        self._set_columns(
+            ws,
+            {
+                "A": 25.75,
+                "B": 23.875,
+                "E": 28.5,
+                "F": 27.75,
+                "G": 26.125,
+                "H": 23.875,
+            },
+        )
+        for row in range(1, 15):
+            ws.row_dimensions[row].height = 24.0
+        ws.row_dimensions[15].height = 24.75
+        ws.row_dimensions[16].height = 24.75
+
+        for rng in ("A1:B1", "A4:B4", "A8:B8", "A12:B12"):
+            ws.merge_cells(rng)
+
+        bold_11 = Font(name=self.normal_font.name, size=11, bold=True)
+        bold_12 = Font(name=self.normal_font.name, size=12, bold=True)
+        right = Alignment(horizontal="right", vertical="center")
+        center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        thin = Side(style="thin", color="000000")
+        yellow_fill = PatternFill("solid", fgColor="FFFFFF00")
+
+        yellow_amount = {"B2", "B9", "B10"}
+        percent_yellow = {"B13", "B6"}
+        right_money = {"B2", "B3", "B5", "B6", "B7", "B9", "B10", "B11", "B14"}
+
+        for row in range(2, 15):
+            ws[f"A{row}"].border = self.border
+            ws[f"A{row}"].alignment = center
+            ws[f"A{row}"].font = bold_12
+            ws[f"B{row}"].border = self.border
+            ws[f"B{row}"].alignment = right if f"B{row}" in right_money else center
+            ws[f"B{row}"].font = bold_12 if row in (2, 14) else self.normal_font
+            if f"B{row}" in yellow_amount or f"B{row}" in percent_yellow:
+                ws[f"B{row}"].fill = yellow_fill
+            if f"B{row}" in right_money:
+                ws[f"B{row}"].number_format = "#,##0.00"
+            if f"B{row}" in percent_yellow:
+                ws[f"B{row}"].number_format = "0.00%"
+
+        for row in range(3, 17):
+            for col in ("D", "E", "F", "G", "H"):
+                cell = ws[f"{col}{row}"]
+                cell.border = self.border
+                cell.font = self.normal_font
+                cell.alignment = center if col == "D" else right
+                if col in ("E", "F", "G", "H") and row >= 4:
+                    cell.number_format = "#,##0.00"
+                if col == "D":
+                    cell.font = bold_12
+
+        ws["D16"].font = bold_12
+        ws["E3"].font = bold_12
+        ws["F3"].font = bold_12
+        ws["G3"].font = bold_12
+        ws["H3"].font = bold_12
+
+        ws["A1"].border = self.border
+        ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+        ws["A1"].font = bold_11
+        ws["A4"].border = self.border
+        ws["A4"].alignment = Alignment(horizontal="center", vertical="center")
+        ws["A4"].font = bold_11
+        ws["B1"].border = Border(top=thin, right=thin, bottom=thin)
+        ws["B4"].border = Border(top=thin, right=thin, bottom=thin)
+        ws["B8"].border = Border(top=thin, right=thin, bottom=thin)
+        ws["B12"].border = Border(top=thin, right=thin, bottom=thin)
+
+        ws["E1"].font = bold_11
+        ws["E1"].alignment = Alignment(horizontal="center", vertical="center")
+        ws["E2"].font = bold_11
+        ws["E2"].alignment = Alignment(horizontal="center", vertical="center")
+        ws["E2"].border = Border(bottom=Side(style="thin", color="000000"))
+        ws["F1"].alignment = Alignment(horizontal="center", vertical="center")
+        ws["F2"].alignment = Alignment(horizontal="center", vertical="center")
+        ws["H16"].font = bold_11
+
+        entries = {
+            "A1": "商检费",
+            "E1": "合同总额",
+            "A2": "金额",
+            "B2": 0,
+            "E2": "付款总额",
+            "D3": "月份",
+            "E3": "付款",
+            "F3": "收款",
+            "G3": "结余",
+            "H3": "占用费",
+            "A4": "保险费",
+            "D4": 1,
+            "E4": 0,
+            "F4": 0,
+            "G4": "=E4-F4",
+            "H4": "=IF(G4>0,G4*B$13/12,0)",
+            "A5": "对外金额",
+            "B5": self.project.totalsum,
+            "D5": 2,
+            "E5": 0,
+            "F5": 0,
+            "G5": "=E5-F5+G4",
+            "H5": "=IF(G5>0,G5*B$13/12,0)",
+            "A6": "费率",
+            "B6": 0.001,
+            "D6": 3,
+            "E6": 0,
+            "F6": 0,
+            "G6": "=E6-F6+G5",
+            "H6": "=IF(G6>0,G6*B$13/12,0)",
+            "A7": "保险费",
+            "B7": "=B5*1.1*B6",
+            "D7": 4,
+            "E7": 0,
+            "F7": 0,
+            "G7": "=E7-F7+G6",
+            "H7": "=IF(G7>0,G7*B$13/12,0)",
+            "A8": "其他费用",
+            "D8": 5,
+            "E8": 0,
+            "F8": 0,
+            "G8": "=E8-F8+G7",
+            "H8": "=IF(G8>0,G8*B$13/12,0)",
+            "A9": "须中方承担的其他费用",
+            "B9": 0,
+            "D9": 6,
+            "E9": 0,
+            "F9": 0,
+            "G9": "=E9-F9+G8",
+            "H9": "=IF(G9>0,G9*B$13/12,0)",
+            "A10": "安放费",
+            "B10": 0,
+            "D10": 7,
+            "E10": 0,
+            "F10": 0,
+            "G10": "=E10-F10+G9",
+            "H10": "=IF(G10>0,G10*B$13/12,0)",
+            "A11": "合计",
+            "D11": 8,
+            "E11": 0,
+            "F11": 0,
+            "G11": "=E11-F11+G10",
+            "H11": "=IF(G11>0,G11*B$13/12,0)",
+            "A12": "资金占用费",
+            "D12": 9,
+            "E12": 0,
+            "F12": 0,
+            "G12": "=E12-F12+G11",
+            "H12": "=IF(G12>0,G12*B$13/12,0)",
+            "A13": "\u5e74\u5316\u5229\u7387",
+            "B13": 0.025,
+            "D13": 10,
+            "E13": 0,
+            "F13": 0,
+            "G13": "=E13-F13+G12",
+            "H13": "=IF(G13>0,G13*B$13/12,0)",
+            "A14": "资金占用费总额",
+            "B14": "=H16",
+            "D14": 11,
+            "E14": 0,
+            "F14": 0,
+            "G14": "=E14-F14+G13",
+            "H14": "=IF(G14>0,G14*B$13/12,0)",
+            "D15": 12,
+            "E15": 0,
+            "F15": 0,
+            "G15": "=E15-F15+G14",
+            "H15": "=IF(G15>0,G15*B$13/12,0)",
+            "D16": "合计",
+            "H16": "=SUM(H4:H15)",
+        }
+        for cell_ref, value in entries.items():
+            ws[cell_ref] = value
+
+        ws["B14"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+        ws["B2"].font = bold_11
+        ws["B13"].alignment = Alignment(vertical="center")
+        ws["E3"].alignment = center
+        ws["F3"].alignment = center
+        ws["G3"].alignment = center
+        ws["H3"].alignment = center
+        ws["E3"].border = Border(
+            left=thin,
+            right=thin,
+            bottom=thin,
+        )
+        for ref in ("E16", "F16", "G16"):
+            ws[ref].number_format = "General"
+            ws[ref].alignment = Alignment()
+
+
     def _build_inner_quote(self, ws, item_count: int) -> int:
         ws.title = "2.物资对内分项报价表"
         self._set_columns(
@@ -875,6 +1070,7 @@ class Quotation:
         wb = Workbook()
         ws_all = wb.active
         ws_fee = wb.create_sheet("费用输入")
+        ws_other_fee = wb.create_sheet("其他费用")
         # ws_open = wb.create_sheet("3.开标一览表")
         # ws_total = wb.create_sheet("1.投标报价总表")
         # ws_inner = wb.create_sheet("2.物资对内分项报价表")
@@ -886,6 +1082,7 @@ class Quotation:
         self._build_all_suppliers(ws_all, items)
         self._build_selector(ws_pick, items)
         self._build_fee_input(ws_fee, items)
+        self._build_other_fees(ws_other_fee)
         # inner_total_row = self._build_inner_quote(ws_inner, len(items))
         # tax_total_row = self._build_tax_sheet(ws_tax, len(items), inner_total_row)
         # self._build_tech_sheet(ws_tech)
