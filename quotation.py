@@ -15,6 +15,7 @@ class Quotation:
 
     def __init__(self, project) -> None:
         self.project = project
+        self._all_suppliers_last_row = 1
 
         self.title_font = Font(name="宋体", size=16, bold=True)
         self.header_font = Font(name="宋体", size=12, bold=True)
@@ -202,6 +203,8 @@ class Quotation:
             self._style_row(ws, idx, 1, len(headers), header=False)
             ws[f"F{idx}"].alignment = self.left
             ws.row_dimensions[idx].height = max(24, min(120, (str(items[key][4]).count("\n") + 1) * 16))
+        self._all_suppliers_last_row = (max(keys) + 1) if keys else 1
+
 
     def _build_selector(self, ws, items: Dict) -> None:
         ws.title = "物资选择"
@@ -216,7 +219,7 @@ class Quotation:
 
 
     def _build_fee_input(self, ws, items: Dict) -> None:
-        ws.title = "运费输入"
+        ws.title = "运输费用"
         row_num = len(items) + 3
 
         self._set_columns(
@@ -294,7 +297,9 @@ class Quotation:
                 else:
                     c.alignment = self.center
                 c.font = self.normal_font
-                if col == 9 or col == 11:
+                if col == 9:
+                    c.number_format = '$#,##0.00'
+                if col == 11:
                     c.number_format = '¥#,##0.00'
 
         for row in range(1, row_num + 1):
@@ -682,69 +687,90 @@ class Quotation:
         self._set_columns(
             ws,
             {
-                "A": 12,
-                "B": 30,
-                "C": 14,
-                "D": 10,
-                "E": 14,
-                "F": 12,
-                "G": 10,
-                "H": 10,
-                "I": 12,
-                "J": 12,
-                "K": 12,
-                "L": 12,
-                "M": 12,
-                "N": 14,
+                "A": 11.25,
+                "B": 29.75,
+                "C": 14.875,
+                "D": 11.75,
+                "E": 17.625,
+                "F": 15.0,
+                "G": 10.625,
+                "H": 10.125,
+                "I": 16.625,
+                "J": 16.0,
+                "K": 15.0,
+                "L": 16.75,
+                "M": 15.75,
+                "N": 19.625,
             },
         )
 
+        item_start = 5
+        item_end = item_start + item_count - 1
+        total_row = item_end + 1
+        stamp_row = total_row + 2
+        date_row = total_row + 3
+        summary_row = total_row + 5
+        service_row = total_row + 6
+
+        ws.row_dimensions[1].height = 32
+        ws.row_dimensions[2].height = 28
+        ws.row_dimensions[3].height = 24
+        for row in range(4, total_row + 1):
+            ws.row_dimensions[row].height = 24.0
+        ws.row_dimensions[total_row + 1].height = 32
+        ws.row_dimensions[stamp_row].height = 33
+        ws.row_dimensions[date_row].height = 33
+        ws.row_dimensions[summary_row - 1].height = 20
+        ws.row_dimensions[summary_row].height = 20
+        ws.row_dimensions[service_row].height = 15
+
         ws.merge_cells("A1:N1")
+        ws.merge_cells("A3:B4")
+        ws.merge_cells("C3:E3")
+        for col in "FGHIJKLMN":
+            ws.merge_cells(f"{col}3:{col}4")
+        ws.merge_cells(f"A{item_start}:A{item_end}")
+        ws.merge_cells(f"A{total_row}:B{total_row}")
+        ws.merge_cells(f"L{stamp_row}:M{stamp_row}")
+
         ws["A1"] = "二.物资对内分项报价表"
         ws["A1"].font = self.title_font
         ws["A1"].alignment = self.center
-        ws.row_dimensions[1].height = 30
 
         ws.merge_cells("A2:N2")
         ws["A2"] = "报价单位：人民币元（保留小数点后两位）"
         ws["A2"].font = self.normal_font
         ws["A2"].alignment = self.left
 
-        headers = [
-            "物资",
-            "品名",
-            "商品购买单价",
-            "数量",
-            "商品购买总价",
-            "国内运杂费",
-            "包装费",
-            "保管费",
-            "物资检验费",
-            "运输保险费",
-            "国外运费",
-            "实施服务费",
-            "税金",
-            "合计",
-        ]
-        for c, h in enumerate(headers, start=1):
-            ws.cell(3, c, h)
-        self._style_row(ws, 3, 1, 14, header=True)
+        ws["A3"] = "物资"
+        ws["C3"] = "商品购买价款"
+        ws["C4"] = "单价"
+        ws["D4"] = "数量"
+        ws["E4"] = "总价"
+        ws["F3"] = "国内运杂费"
+        ws["G3"] = "包装费"
+        ws["H3"] = "保管费"
+        ws["I3"] = "物资检验费"
+        ws["J3"] = "运输保险费"
+        ws["K3"] = "国外运费"
+        ws["L3"] = "实施服务费"
+        ws["M3"] = "税金"
+        ws["N3"] = "合计"
 
-        item_start = 4
-        item_end = item_start + item_count - 1
-        total_row = item_end + 1
-        summary_row = total_row + 2
+        # self._style_row(ws, 3, 1, 14, header=True)
+        # self._style_row(ws, 4, 1, 14, header=True)
 
-        ws.merge_cells(f"A{item_start}:A{item_end}")
         ws[f"A{item_start}"] = "供货清单（一）"
         ws[f"A{item_start}"].alignment = self.center
         ws[f"A{item_start}"].font = self.normal_font
+        ws[f"A{item_start}"].border = self.border
 
+        supplier_last_row = max(getattr(self, "_all_suppliers_last_row", 1), 1)
         for i in range(1, item_count + 1):
             row = item_start + i - 1
-            ws[f"B{row}"] = f"=物资选择!A{i}&\".\"&物资选择!B{i}"
-            ws[f"C{row}"] = f"=INDEX('全部厂家备用'!J:J,物资选择!C{i})"
-            ws[f"D{row}"] = f"=INDEX('全部厂家备用'!D:D,物资选择!C{i})"
+            ws[f"B{row}"] = f'=物资选择!A{i}&"."&物资选择!B{i}'
+            ws[f"C{row}"] = f"=INDEX(全部厂家备用!J$1:J${supplier_last_row},物资选择!C{i})"
+            ws[f"D{row}"] = f"=INDEX(全部厂家备用!D$1:D${supplier_last_row},物资选择!C{i})"
             ws[f"E{row}"] = f"=C{row}*D{row}"
             ws[f"F{row}"] = 0
             ws[f"G{row}"] = 0
@@ -756,26 +782,54 @@ class Quotation:
             ws[f"M{row}"] = f"=ROUND(E{row}/E${total_row}*M${summary_row},2)"
             ws[f"N{row}"] = f"=SUM(E{row}:M{row})"
             self._style_row(ws, row, 2, 14, header=False)
+            ws[f"B{row}"].alignment = self.left
+            ws[f"C{row}"].number_format = "#,##0.00"
+            ws[f"D{row}"].number_format = "0"
+            for col in "EFGHIJKLMN":
+                ws[f"{col}{row}"].number_format = "#,##0.00"
 
         ws[f"A{total_row}"] = "合计"
-        ws.merge_cells(f"A{total_row}:B{total_row}")
         ws[f"A{total_row}"].font = self.header_font
         ws[f"A{total_row}"].alignment = self.center
         ws[f"A{total_row}"].border = self.border
         ws[f"B{total_row}"].border = self.border
         for col in "EFGHIJKLMN":
             ws[f"{col}{total_row}"] = f"=SUM({col}{item_start}:{col}{item_end})"
+            ws[f"{col}{total_row}"].number_format = "#,##0.00"
         self._style_row(ws, total_row, 3, 14, header=False)
 
-        ws[f"H{summary_row}"] = "分摊基数"
-        ws[f"I{summary_row}"] = "=费用输入!B2"
-        ws[f"J{summary_row}"] = "=费用输入!B3"
-        ws[f"K{summary_row}"] = "=费用输入!B4"
-        ws[f"L{summary_row}"] = "='4.技术服务费报价表'!H14"
-        ws[f"M{summary_row}"] = f"=ROUND((SUM(E{total_row}:L{total_row}))*费用输入!B6,2)"
+        ws[f"L{stamp_row}"] = "投标人盖章："
+        ws[f"L{stamp_row}"].font = self.normal_font
+        ws[f"L{stamp_row}"].alignment = self.left
+        ws[f"M{date_row}"] = "日期："
+        ws[f"M{date_row}"].font = self.normal_font
+        ws[f"M{date_row}"].alignment = self.left
+        ws[f"N{date_row}"] = self._parse_date(self.project.date)
+
+        ws[f"F{summary_row}"] = 0
+        ws[f"I{summary_row}"] = "=费用输入!O2"
+        ws[f"J{summary_row}"] = "=费用输入!O7"
+        ws[f"K{summary_row}"] = "=费用输入!E18+费用输入!K16"
+        ws[f"L{summary_row}"] = 1400000
+        ws[f"M{summary_row}"] = f"=ROUND((SUM(E{total_row}:K{total_row})+'1.投标报价总表'!C9)*0.0003,2)"
         ws[f"N{summary_row}"] = f"=SUM(E{total_row}:M{total_row})"
-        self._style_row(ws, summary_row, 8, 14, header=False)
+        ws[f"L{service_row}"] = (
+            f"=IF(E{total_row}>50000000,(E{total_row}-50000000)*0.0075+835000,"
+            f"IF(E{total_row}>20000000,(E{total_row}-20000000)*0.01+535000,"
+            f"IF(E{total_row}>10000000,(E{total_row}-10000000)*0.02+335000,"
+            f"IF(E{total_row}>5000000,(E{total_row}-5000000)*0.03+185000,"
+            f"IF(E{total_row}>2000000,(E{total_row}-2000000)*0.035+80000,E{total_row}*0.04)))))"
+        )
+
+        self._style_row(ws, summary_row, 6, 14, header=False)
+        ws[f"F{summary_row}"].number_format = "#,##0.00"
+        for col in "IJKLMN":
+            ws[f"{col}{summary_row}"].number_format = "#,##0.00"
+        ws[f"L{service_row}"].number_format = "#,##0.00"
+        ws[f"L{service_row}"].border = self.border
+
         return total_row
+
 
     def _build_tax_sheet(self, ws, item_count: int, inner_total_row: int) -> int:
         ws.title = "3.各项物资退抵税额表"
@@ -1073,7 +1127,7 @@ class Quotation:
         ws_other_fee = wb.create_sheet("其他费用")
         # ws_open = wb.create_sheet("3.开标一览表")
         # ws_total = wb.create_sheet("1.投标报价总表")
-        # ws_inner = wb.create_sheet("2.物资对内分项报价表")
+        ws_inner = wb.create_sheet("2.物资对内分项报价表")
         # ws_tax = wb.create_sheet("3.各项物资退抵税额表")
         # ws_tech = wb.create_sheet("4.技术服务费报价表")
         # ws_train = wb.create_sheet("5.来华培训费报价表")
@@ -1083,7 +1137,7 @@ class Quotation:
         self._build_selector(ws_pick, items)
         self._build_fee_input(ws_fee, items)
         self._build_other_fees(ws_other_fee)
-        # inner_total_row = self._build_inner_quote(ws_inner, len(items))
+        inner_total_row = self._build_inner_quote(ws_inner, len(items))
         # tax_total_row = self._build_tax_sheet(ws_tax, len(items), inner_total_row)
         # self._build_tech_sheet(ws_tech)
         # self._build_train_sheet(ws_train)
