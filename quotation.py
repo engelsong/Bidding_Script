@@ -73,8 +73,8 @@ class Quotation:
             cell.font = self.header_font if header else self.normal_font
             cell.alignment = self.center
             cell.border = self.border
-            if header:
-                cell.fill = self.header_fill
+            # if header:
+            #     cell.fill = self.header_fill
 
     def _build_all_suppliers(self, ws, items: Dict) -> None:
         ws.title = "全部厂家备用"
@@ -172,7 +172,7 @@ class Quotation:
             ws[f"G{idx}"] = items[key][5]
             ws[f"H{idx}"] = ""
             ws[f"I{idx}"] = ""
-            ws[f"J{idx}"] = 0
+            ws[f"J{idx}"] = 1
             ws[f"K{idx}"] = f"=D{idx}*J{idx}"
             ws[f"L{idx}"] = ""
             ws[f"M{idx}"] = ""
@@ -270,6 +270,7 @@ class Quotation:
             "G12:G13",
             "G14:G15",
             "G17:K17",
+            "G16:I16",
             # f"M{row_num}:N{row_num}",
         ]
         for rng in merged_ranges:
@@ -574,7 +575,7 @@ class Quotation:
             "A1": "商检费",
             "E1": "合同总额",
             "A2": "金额",
-            "B2": 0,
+            "B2": 10000,
             "E2": "付款总额",
             "D3": "月份",
             "E3": "付款",
@@ -640,7 +641,7 @@ class Quotation:
             "F12": 0,
             "G12": "=E12-F12+G11",
             "H12": "=IF(G12>0,G12*B$13/12,0)",
-            "A13": "\u5e74\u5316\u5229\u7387",
+            "A13": "年化利率",
             "B13": 0.025,
             "D13": 10,
             "E13": 0,
@@ -730,7 +731,7 @@ class Quotation:
         for col in "FGHIJKLMN":
             ws.merge_cells(f"{col}3:{col}4")
         ws.merge_cells(f"A{item_start}:A{item_end}")
-        ws.merge_cells(f"A{total_row}:B{total_row}")
+        ws.merge_cells(f"A{total_row}:D{total_row}")
         ws.merge_cells(f"L{stamp_row}:M{stamp_row}")
 
         ws["A1"] = "二.物资对内分项报价表"
@@ -757,8 +758,8 @@ class Quotation:
         ws["M3"] = "税金"
         ws["N3"] = "合计"
 
-        # self._style_row(ws, 3, 1, 14, header=True)
-        # self._style_row(ws, 4, 1, 14, header=True)
+        self._style_row(ws, 3, 1, 14, header=True)
+        self._style_row(ws, 4, 1, 14, header=True)
 
         ws[f"A{item_start}"] = "供货清单（一）"
         ws[f"A{item_start}"].alignment = self.center
@@ -769,8 +770,8 @@ class Quotation:
         for i in range(1, item_count + 1):
             row = item_start + i - 1
             ws[f"B{row}"] = f'=物资选择!A{i}&"."&物资选择!B{i}'
-            ws[f"C{row}"] = f"=INDEX(全部厂家备用!J$1:J${supplier_last_row},物资选择!C{i})"
-            ws[f"D{row}"] = f"=INDEX(全部厂家备用!D$1:D${supplier_last_row},物资选择!C{i})"
+            ws[f"C{row}"] = f"=INDEX(全部厂家备用!J:J,物资选择!C{i})"
+            ws[f"D{row}"] = f"=INDEX(全部厂家备用!D:D,物资选择!C{i})"
             ws[f"E{row}"] = f"=C{row}*D{row}"
             ws[f"F{row}"] = 0
             ws[f"G{row}"] = 0
@@ -787,31 +788,38 @@ class Quotation:
             ws[f"D{row}"].number_format = "0"
             for col in "EFGHIJKLMN":
                 ws[f"{col}{row}"].number_format = "#,##0.00"
+            for col in "CEFGHIJKLMN":
+                ws[f"{col}{row}"].alignment = self.right
 
         ws[f"A{total_row}"] = "合计"
         ws[f"A{total_row}"].font = self.header_font
         ws[f"A{total_row}"].alignment = self.center
-        ws[f"A{total_row}"].border = self.border
-        ws[f"B{total_row}"].border = self.border
+        for col in "ABCD":
+            ws[f"{col}{total_row}"].border = self.border
         for col in "EFGHIJKLMN":
             ws[f"{col}{total_row}"] = f"=SUM({col}{item_start}:{col}{item_end})"
             ws[f"{col}{total_row}"].number_format = "#,##0.00"
-        self._style_row(ws, total_row, 3, 14, header=False)
+            ws[f"{col}{total_row}"].alignment = self.right
+            ws[f"{col}{total_row}"].border = self.border
+            ws[f"{col}{total_row}"].font = self.header_font
+
 
         ws[f"L{stamp_row}"] = "投标人盖章："
-        ws[f"L{stamp_row}"].font = self.normal_font
+        ws[f"L{stamp_row}"].font = self.header_font
         ws[f"L{stamp_row}"].alignment = self.left
         ws[f"M{date_row}"] = "日期："
-        ws[f"M{date_row}"].font = self.normal_font
+        ws[f"M{date_row}"].font = self.header_font
         ws[f"M{date_row}"].alignment = self.left
         ws[f"N{date_row}"] = self._parse_date(self.project.date)
+        ws[f"N{date_row}"].font = self.header_font
+        ws[f"N{date_row}"].alignment = self.right
 
         ws[f"F{summary_row}"] = 0
-        ws[f"I{summary_row}"] = "=费用输入!O2"
-        ws[f"J{summary_row}"] = "=费用输入!O7"
-        ws[f"K{summary_row}"] = "=费用输入!E18+费用输入!K16"
-        ws[f"L{summary_row}"] = 1400000
-        ws[f"M{summary_row}"] = f"=ROUND((SUM(E{total_row}:K{total_row})+'1.投标报价总表'!C9)*0.0003,2)"
+        ws[f"I{summary_row}"] = "=其他费用!B2"
+        ws[f"J{summary_row}"] = "=其他费用!B7"
+        ws[f"K{summary_row}"] = "=运输费用!K16+运输费用!E18"
+        ws[f"L{summary_row}"] = f"=L{service_row}"
+        ws[f"M{summary_row}"] = f"=ROUND((SUM(E{total_row}:K{total_row}))*0.0003,2)"
         ws[f"N{summary_row}"] = f"=SUM(E{total_row}:M{total_row})"
         ws[f"L{service_row}"] = (
             f"=IF(E{total_row}>50000000,(E{total_row}-50000000)*0.0075+835000,"
@@ -821,12 +829,12 @@ class Quotation:
             f"IF(E{total_row}>2000000,(E{total_row}-2000000)*0.035+80000,E{total_row}*0.04)))))"
         )
 
-        self._style_row(ws, summary_row, 6, 14, header=False)
-        ws[f"F{summary_row}"].number_format = "#,##0.00"
-        for col in "IJKLMN":
-            ws[f"{col}{summary_row}"].number_format = "#,##0.00"
-        ws[f"L{service_row}"].number_format = "#,##0.00"
-        ws[f"L{service_row}"].border = self.border
+        # self._style_row(ws, summary_row, 6, 14, header=False)
+        # ws[f"F{summary_row}"].number_format = "#,##0.00"
+        # for col in "IJKLMN":
+        #     ws[f"{col}{summary_row}"].number_format = "#,##0.00"
+        # ws[f"L{service_row}"].number_format = "#,##0.00"
+        # ws[f"L{service_row}"].border = self.border
 
         return total_row
 
