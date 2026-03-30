@@ -25,6 +25,7 @@ class Quotation:
         self.right = Alignment(horizontal="right", vertical="center", wrap_text=True)
         thin = Side(style="thin", color="000000")
         self.border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        self.diag_border = Border(left=thin, right=thin, top=thin, bottom=thin, diagonal=thin, diagonalUp=True)
         self.import_fill = PatternFill("solid", fgColor="FFFF00")
         self.header_fill = PatternFill("solid", fgColor="808080")
 
@@ -732,7 +733,7 @@ class Quotation:
             ws.merge_cells(f"{col}3:{col}4")
         ws.merge_cells(f"A{item_start}:A{item_end}")
         ws.merge_cells(f"A{total_row}:D{total_row}")
-        ws.merge_cells(f"L{stamp_row}:M{stamp_row}")
+
 
         ws["A1"] = "二.物资对内分项报价表"
         ws["A1"].font = self.title_font
@@ -766,7 +767,6 @@ class Quotation:
         ws[f"A{item_start}"].font = self.normal_font
         ws[f"A{item_start}"].border = self.border
 
-        supplier_last_row = max(getattr(self, "_all_suppliers_last_row", 1), 1)
         for i in range(1, item_count + 1):
             row = item_start + i - 1
             ws[f"B{row}"] = f'=物资选择!A{i}&"."&物资选择!B{i}'
@@ -806,14 +806,14 @@ class Quotation:
 
         ws[f"L{stamp_row}"] = "投标人盖章："
         ws[f"L{stamp_row}"].font = self.header_font
-        ws[f"L{stamp_row}"].alignment = self.left
-        ws[f"M{date_row}"] = "日期："
-        ws[f"M{date_row}"].font = self.header_font
+        ws[f"L{stamp_row}"].alignment = self.right
+        ws[f"L{date_row}"] = "日期："
+        ws[f"L{date_row}"].font = self.header_font
+        ws[f"L{date_row}"].alignment = self.right
         ws[f"M{date_row}"].number_format = 'yyyy"年"m"月"d"日"'
-        ws[f"M{date_row}"].alignment = self.left
-        ws[f"N{date_row}"] = self._parse_date(self.project.date)
-        ws[f"N{date_row}"].font = self.header_font
-        ws[f"N{date_row}"].alignment = self.right
+        ws[f"M{date_row}"] = self._parse_date(self.project.date)
+        ws[f"M{date_row}"].font = self.header_font
+        ws[f"M{date_row}"].alignment = self.right
 
         ws[f"F{summary_row}"] = 0
         ws[f"I{summary_row}"] = "=其他费用!B2"
@@ -968,66 +968,17 @@ class Quotation:
 
         ws[f"G{stamp_row}"] = "投标人盖章："
         ws[f"G{stamp_row}"].font = self.header_font
-        ws[f"G{stamp_row}"].alignment = self.left
+        ws[f"G{stamp_row}"].alignment = self.right
         ws[f"G{date_row}"] = "日期："
         ws[f"G{date_row}"].font = self.header_font
-        ws[f"G{date_row}"].alignment = self.left
+        ws[f"G{date_row}"].alignment = self.right
         ws[f"H{date_row}"] = self._parse_date(self.project.date)
         ws[f"H{date_row}"].font = self.header_font
         ws[f"H{date_row}"].alignment = self.right
         ws[f"H{date_row}"].number_format = 'yyyy"年"m"月"d"日"'
 
-
         self._tax_total_row = total_row
 
-    def _build_tech_sheet(self, ws) -> None:
-        ws.title = "4.技术服务费报价表"
-        self._set_columns(ws, {"A": 6, "B": 22, "C": 12, "D": 12, "E": 8, "F": 10, "G": 14, "H": 14})
-
-        ws.merge_cells("A1:H1")
-        ws["A1"] = "四.技术服务费报价表"
-        ws["A1"].font = self.title_font
-        ws["A1"].alignment = self.center
-
-        headers = ["序号", "费用名称", "美元单价", "人民币单价", "人数", "天/次数", "美元合计", "人民币合计"]
-        for c, h in enumerate(headers, start=1):
-            ws.cell(2, c, h)
-        self._style_row(ws, 2, 1, 8, header=True)
-
-        people = self.project.techinfo[0] if self.project.is_tech and len(self.project.techinfo) >= 2 else 0
-        days = self.project.techinfo[1] if self.project.is_tech and len(self.project.techinfo) >= 2 else 0
-
-        items = [
-            "护照和签证手续费",
-            "防疫免疫费",
-            "技术服务人员保险费",
-            "国内交通费",
-            "国际交通费",
-            "住宿费",
-            "伙食费",
-            "津贴补贴",
-            "当地雇工费",
-            "当地设备工具材料购置或租用费",
-            "其它确需发生的费用",
-        ]
-        for i, name in enumerate(items, start=3):
-            ws[f"A{i}"] = i - 2
-            ws[f"B{i}"] = name
-            ws[f"D{i}"] = 0
-            ws[f"E{i}"] = people
-            ws[f"F{i}"] = days if i in (8, 9, 10) else "-"
-            ws[f"G{i}"] = f"=C{i}*E{i}*IF(F{i}=\"-\",1,F{i})"
-            ws[f"H{i}"] = f"=D{i}*E{i}*IF(F{i}=\"-\",1,F{i})"
-            self._style_row(ws, i, 1, 8, header=False)
-        ws["A14"] = "共计："
-        ws.merge_cells("A14:F14")
-        ws["A14"].font = self.header_font
-        ws["A14"].alignment = self.center
-        for col in range(1, 7):
-            ws.cell(14, col).border = self.border
-        ws["G14"] = "=SUM(G3:G13)"
-        ws["H14"] = "=SUM(H3:H13)"
-        self._style_row(ws, 14, 7, 8, header=False)
 
     def _build_train_sheet(self, ws) -> None:
         ws.title = "5.来华培训费报价表"
@@ -1084,6 +1035,132 @@ class Quotation:
         ws[f"B{total_row}"] = "合计"
         ws[f"G{total_row}"] = f"=SUM(G{start}:G{total_row-1})"
         self._style_row(ws, total_row, 1, 7, header=False)
+
+    def _build_tech_sheet(self, ws) -> None:
+        if not self.project.is_tech:
+            return
+
+        people = self.project.techinfo[0] if len(self.project.techinfo) >= 2 else 0
+        days = self.project.techinfo[1] if len(self.project.techinfo) >= 2 else 0
+
+        ws.title = "4.技术服务费报价表"
+        self._set_columns(
+            ws,
+            {
+                "A": 6.0,
+                "B": 16.0,
+                "C": 14.0,
+                "D": 16.0,
+                "E": 8.0,
+                "G": 18,
+                "H": 22,
+                "I": 9.0,
+            },
+        )
+
+        ws.row_dimensions[1].height = 52
+        for row in range(2, 15):
+            ws.row_dimensions[row].height = 42
+        ws.row_dimensions[17].height = 24
+        ws.row_dimensions[18].height = 24
+
+        ws["A1"] = "四.技术服务费报价表"
+        ws["A1"].font = Font(name="宋体", size=20, bold=True)
+        ws["A1"].alignment = self.center
+
+        headers = ["序号", "费用名称", "美元单价", "人民币单价", "人数", "天/次数", "美元合计", "人民币合计"]
+        for c, h in enumerate(headers, start=1):
+            ws.cell(2, c, h)
+        self._style_row(ws, 2, 1, 8, header=True)
+        # self._style_row(ws, 2, 7, 8, header=True)
+        # ws["G2"].alignment = Alignment(horizontal="center", vertical="center")
+        # ws["H2"].alignment = Alignment(horizontal="center", vertical="center")
+
+        rows = [
+            (1, "护照和签证手续费", 0, "-", 0, "=D3*E3"),
+            (2, "防疫免疫费", 0, "-", 0, "=D4*E4"),
+            (3, "技术服务人员保险费", 800, "-", 0, "=D5*E5"),
+            (4, "国内交通费", 0, "-", 0, "=D6*E6"),
+            (5, "国际交通费", 10000, "-", 0, "=D7*E7"),
+            (6, "住宿费", 500, days, "=C8*E8*F8", "=D8*E8*F8"),
+            (7, "伙食费", 50, 15, "=C9*E9*F9", "=D9*E9*F9"),
+            (8, "津贴补贴", 50, 15, "=C10*E10*F10", "=D10*E10*F10"),
+            (9, "当地雇工费", None, None, 0, 0),
+            (10, "当地设备工具材料购置或租用费", None, None, 0, 0),
+            (11, "其它确需发生的费用", None, None, 0, 0),
+        ]
+
+        for idx, row in enumerate(rows, start=3):
+            seq, name, rmb_price, freq, usd_total, rmb_total = row
+            ws[f"A{idx}"] = seq
+            ws[f"B{idx}"] = name
+            ws[f"G{idx}"] = usd_total
+            ws[f"H{idx}"] = rmb_total
+
+            self._style_row(ws, idx, 1, 8, header=False)
+            ws[f"B{idx}"].alignment = self.left
+            ws[f"G{idx}"].number_format = '$#,##0.00'
+            ws[f"H{idx}"].number_format = '¥#,##0.00'
+
+            if idx <= 10:
+                ws[f"D{idx}"] = rmb_price
+                ws[f"E{idx}"] = people
+                ws[f"F{idx}"] = freq
+                ws[f"D{idx}"].number_format = '¥#,##0.00'
+            if idx <= 7:
+                ws[f"F{idx}"] = "-"
+            if idx in (8, 9, 10):
+                ws[f"F{idx}"] = days
+                ws[f"F{idx}"].number_format = "0"
+            if idx in (11, 12, 13):
+                for col in range(3, 7):
+                    ws.cell(idx, col).border = self.border
+
+        for row in range(3, 14):
+            ws[f"A{row}"].number_format = "0"
+            ws[f"E{row}"].number_format = "0"
+            ws[f"F{row}"].alignment = self.center
+            ws[f"H{row}"].alignment = self.right
+            ws[f"C{row}"].border = self.diag_border
+
+        for row in range(11, 14):
+            for col in 'DEF':
+                ws[f"{col}{row}"].border = self.diag_border
+
+        ws.merge_cells("A1:H1")
+        ws.merge_cells("C11:F11")
+        ws.merge_cells("C12:F12")
+        ws.merge_cells("C13:F13")
+        ws.merge_cells("A14:F14")
+
+        ws["A14"] = "共计："
+        ws["A14"].font = self.header_font
+        ws["A14"].alignment = self.center
+        for col in range(1, 7):
+            ws.cell(14, col).border = self.border
+            ws.cell(14, col).font = self.header_font
+        ws["G14"] = "=SUM(G3:G13)"
+        ws["H14"] = "=SUM(H3:H13)"
+        ws["G14"].number_format = '$#,##0.00'
+        ws["H14"].number_format = '¥#,##0.00'
+        ws["G14"].alignment = self.center
+        ws["H14"].alignment = self.right
+        ws["G14"].border = self.border
+        ws["H14"].border = self.border
+        ws["G14"].font = self.header_font
+        ws["H14"].font = self.header_font
+
+        stamp_font = Font(name="宋体", size=14, bold=True)
+        ws["G17"] = "投标人盖章："
+        ws["G17"].font = stamp_font
+        ws["G17"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+        ws["G18"] = "日期："
+        ws["G18"].font = stamp_font
+        ws["G18"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+        ws["H18"] = self._parse_date(self.project.date)
+        ws["H18"].font = stamp_font
+        ws["H18"].alignment = self.right
+        ws["H18"].number_format = 'yyyy"年"m"月"d"日"'
 
     def _build_total_sheet(
         self, ws, inner_total_row: int, tax_total_row: int, bid_date: date
@@ -1181,7 +1258,7 @@ class Quotation:
         # ws_total = wb.create_sheet("1.投标报价总表")
         ws_inner = wb.create_sheet("2.物资对内分项报价表")
         ws_tax = wb.create_sheet("3.各项物资退抵税额表")
-        # ws_tech = wb.create_sheet("4.技术服务费报价表")
+        ws_tech = wb.create_sheet("4.技术服务费报价表") if self.project.is_tech else None
         # ws_train = wb.create_sheet("5.来华培训费报价表")
         ws_pick = wb.create_sheet("物资选择")
 
@@ -1191,7 +1268,8 @@ class Quotation:
         self._build_other_fees(ws_other_fee)
         inner_total_row = self._build_inner_quote(ws_inner, len(items))
         self._build_tax_sheet(ws_tax, len(items), inner_total_row)
-        # self._build_tech_sheet(ws_tech)
+        if ws_tech is not None:
+            self._build_tech_sheet(ws_tech)
         # self._build_train_sheet(ws_train)
         # self._build_total_sheet(ws_total, inner_total_row, tax_total_row, bid_date)
         # self._build_opening_sheet(ws_open, bid_date)
