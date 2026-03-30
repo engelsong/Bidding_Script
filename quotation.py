@@ -881,7 +881,7 @@ class Quotation:
         ws.merge_cells("A2:C2")
         ws.merge_cells(f"A{promise_row}:H{promise_row}")
 
-        ws["A1"] = "三、增值税和消费税退抵税额表"
+        ws["A1"] = "三.增值税和消费税退抵税额表"
         ws["A1"].font = self.title_font
         ws["A1"].alignment = self.center
 
@@ -979,62 +979,6 @@ class Quotation:
 
         self._tax_total_row = total_row
 
-
-    def _build_train_sheet(self, ws) -> None:
-        ws.title = "5.来华培训费报价表"
-        self._set_columns(ws, {"A": 6, "B": 20, "C": 12, "D": 14, "E": 8, "F": 10, "G": 16})
-
-        ws.merge_cells("A1:G1")
-        ws["A1"] = "五.来华培训费报价表"
-        ws["A1"].font = self.title_font
-        ws["A1"].alignment = self.center
-
-        headers = ["序号", "费用名称", "标准", "费用计算方式", "人数", "天(次)数", "人民币(元)"]
-        for c, h in enumerate(headers, start=1):
-            ws.cell(2, c, h)
-        self._style_row(ws, 2, 1, 7, header=True)
-
-        num = self.project.training_num if self.project.is_cc else 0
-        days = self.project.training_days if self.project.is_cc else 0
-        stay_days = max(days - 1, 0)
-
-        rows = [
-            ("一", "培训费", "360元/人*天", 360, num, days),
-            ("二-1", "日常伙食费", "190元/人*天", 190, num, days),
-            ("二-2", "住宿费", "350元/人*天", 350, num, stay_days),
-            ("二-3", "宴请费", "200元/人*次", 200, num, 1 if num else 0),
-            ("二-4", "零用费", "150元/人*天", 150, num, days),
-            ("二-5", "小礼品费", "200元/人", 200, num, 1 if num else 0),
-            ("二-6", "人身意外伤害保险", "150元/人", 150, num, "-"),
-            ("三", "国际旅费", "5000元/人", 5000, num, "-"),
-            ("四-1", "承办管理费", "6%", None, None, None),
-            ("四-2", "管理人员伙食费", "190元/人*天", 190, 2 if num else 0, days if num else 0),
-            ("四-3", "管理人员住宿费", "350元/人*天", 350, 2 if num else 0, days if num else 0),
-        ]
-
-        start = 3
-        for idx, row in enumerate(rows, start=start):
-            code, name, std, unit_price, people, day = row
-            ws[f"A{idx}"] = code
-            ws[f"B{idx}"] = name
-            ws[f"C{idx}"] = std
-            if unit_price is not None:
-                ws[f"D{idx}"] = unit_price
-                ws[f"E{idx}"] = people
-                ws[f"F{idx}"] = day
-                if isinstance(day, str):
-                    ws[f"G{idx}"] = f"=D{idx}*E{idx}"
-                else:
-                    ws[f"G{idx}"] = f"=D{idx}*E{idx}*F{idx}"
-            else:
-                ws[f"G{idx}"] = f"=ROUND((SUM(G{start}:G{start+7}))*0.06,2)"
-            self._style_row(ws, idx, 1, 7, header=False)
-
-        total_row = start + len(rows)
-        ws[f"A{total_row}"] = "五"
-        ws[f"B{total_row}"] = "合计"
-        ws[f"G{total_row}"] = f"=SUM(G{start}:G{total_row-1})"
-        self._style_row(ws, total_row, 1, 7, header=False)
 
     def _build_tech_sheet(self, ws) -> None:
         if not self.project.is_tech:
@@ -1162,6 +1106,162 @@ class Quotation:
         ws["H18"].alignment = self.right
         ws["H18"].number_format = 'yyyy"年"m"月"d"日"'
 
+    def _build_train_sheet(self, ws) -> None:
+        if not self.project.is_cc:
+            return
+
+        title_no = "5" if self.project.is_tech else "4"
+        num = self.project.training_num
+        days = self.project.training_days
+        stay_days = max(days - 1, 0)
+
+        ws.title = f"{title_no}.来华培训费报价表"
+        self._set_columns(
+            ws,
+            {
+                "A": 6.0,
+                "B": 15.0,
+                "C": 8.0,
+                "D": 16,
+                "E": 7.0,
+                "F": 16,
+                "G": 20,
+                "H": 12.0,
+                "I": 9.0,
+            },
+        )
+
+        ws.row_dimensions[1].height = 30.0
+        for row in range(2, 18):
+            ws.row_dimensions[row].height = 32
+        ws.row_dimensions[18].height = 20
+        ws.row_dimensions[19].height = 20
+        ws.row_dimensions[20].height = 20
+
+        for rng in (
+            "A1:H1",
+            "A2:A3",
+            "B2:C3",
+            "D2:F2",
+            "G2:G3",
+            "H2:H3",
+            "B4:C4",
+            "B5:C5",
+            "D5:G5",
+            "B6:C6",
+            "B7:C7",
+            "B8:C8",
+            "B9:C9",
+            "B10:C10",
+            "B11:C11",
+            "B12:C12",
+            "B13:C13",
+            "D13:G13",
+            "B14:C14",
+            "D14:F14",
+            "A15:A16",
+            "B15:B16",
+            "B17:F17",
+        ):
+            ws.merge_cells(rng)
+        title_char = "五" if self.project.is_tech else "四"
+        ws["A1"] = f"{title_char}.来华培训费报价表"
+        ws["A1"].font = self.title_font
+        ws["A1"].alignment = self.center
+
+        headers = {
+            "A2": "序号",
+            "B2": "费用名称",
+            "D2": "费用计算方式",
+            "G2": "人民币（元）",
+            "H2": "其中含购汇人民币限额",
+            "D3": "标准",
+            "E3": "人数",
+            "F3": "天（次）数",
+        }
+        for cell_ref, value in headers.items():
+            ws[cell_ref] = value
+        self._style_row(ws, 2, 1, 8, header=True)
+        self._style_row(ws, 3, 1, 8, header=True)
+
+
+        rows = {
+            4: ("一", "培训费", None, 360, num, days, "=D4*E4*F4"),
+            5: ("二", "接待费", None, None, None, None, None),
+            6: (1, "日常伙食费", None, 190, num, days, "=D6*E6*F6"),
+            7: (2, "住宿费", None, 350, num, stay_days, "=D7*E7*F7"),
+            8: (3, "宴请费", None, 200, num, 1, "=D8*E8*F8"),
+            9: (4, "零用费", None, 150, num, days, "=D9*E9*F9"),
+            10: (5, "小礼品费", None, 200, num, 1, "=D10*E10*F10"),
+            11: (6, "人身意外伤害保险", None, 150, num, "-", "=D11*E11"),
+            12: ("三", "国际旅费", None, 5000, num, "-", "=D12*E12"),
+            13: ("四", "管理费", None, None, None, None, None),
+            14: (1, "承办管理费", None, None, None, None, "=ROUND((SUM(G4,G6:G11))*0.06,2)"),
+            15: (2, "管理人员费", "伙食费", "=D6", 2, days, "=D15*E15*F15"),
+            16: (None, None, "住宿费", "=D7", 2, days, "=D16*E16*F16"),
+            17: ("五", "合计", None, None, None, None, "=SUM(G4:G16)"),
+        }
+
+        for row, values in rows.items():
+            seq, name_b, name_c, standard, people, freq, total = values
+            if seq is not None:
+                ws[f"A{row}"] = seq
+            if name_b is not None:
+                ws[f"B{row}"] = name_b
+            if name_c is not None:
+                ws[f"C{row}"] = name_c
+            if standard is not None:
+                ws[f"D{row}"] = standard
+            if people is not None:
+                ws[f"E{row}"] = people
+            if freq is not None:
+                ws[f"F{row}"] = freq
+            if total is not None:
+                ws[f"G{row}"] = total
+
+            self._style_row(ws, row, 1, 8, header=False)
+            for col in range(1, 9):
+                ws.cell(row, col).border = self.border
+
+        for ref in ("B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11", "B12", "B13", "B14", "B15","C15", "C16"):
+            ws[ref].alignment = self.left
+
+        for ref in ("G4", "G6", "G7", "G8", "G9", "G10", "G11", "G12", "G14", "G15", "G16", "G17"):
+            ws[ref].number_format = '¥#,##0.00'
+            ws[ref].alignment = self.right
+
+        for ref in ("E4", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E15", "E16", "F4", "F6", "F7", "F8", "F9", "F10", "F15", "F16"):
+            ws[ref].number_format = "0"
+            ws[ref].alignment = self.center
+
+        ws["D4"].number_format = '0"元/人*天"'
+        ws["D6"].number_format = '0"元/人*天"'
+        ws["D7"].number_format = '0"元/人*天"'
+        ws["D8"].number_format = '0"元/人*次"'
+        ws["D9"].number_format = '0"元/人*天"'
+        ws["D10"].number_format = '0"元/人"'
+        ws["D11"].number_format = '0"元/人"'
+        ws["D12"].number_format = '0"元/人"'
+        ws["D15"].number_format = '0"元/人*天"'
+        ws["D16"].number_format = '0"元/人*天"'
+
+        for col in 'DEF':
+            ws[f"{col}14"].border = self.diag_border
+
+        self._style_row(ws, 17, 1, 8, header=True)
+
+        stamp_font = Font(name="宋体", size=11, bold=True)
+        ws["F19"] = "投标人盖章："
+        ws["F19"].font = stamp_font
+        ws["F19"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+        ws["F20"] = "日期："
+        ws["F20"].font = stamp_font
+        ws["F20"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+        ws["G20"] = self._parse_date(self.project.date)
+        ws["G20"].font = stamp_font
+        ws["G20"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+        ws["G20"].number_format = 'yyyy"年"m"月"d"日"'
+
     def _build_total_sheet(
         self, ws, inner_total_row: int, tax_total_row: int, bid_date: date
     ) -> None:
@@ -1259,7 +1359,7 @@ class Quotation:
         ws_inner = wb.create_sheet("2.物资对内分项报价表")
         ws_tax = wb.create_sheet("3.各项物资退抵税额表")
         ws_tech = wb.create_sheet("4.技术服务费报价表") if self.project.is_tech else None
-        # ws_train = wb.create_sheet("5.来华培训费报价表")
+        ws_train = wb.create_sheet("5.来华培训费报价表") if self.project.is_cc else None
         ws_pick = wb.create_sheet("物资选择")
 
         self._build_all_suppliers(ws_all, items)
@@ -1270,7 +1370,8 @@ class Quotation:
         self._build_tax_sheet(ws_tax, len(items), inner_total_row)
         if ws_tech is not None:
             self._build_tech_sheet(ws_tech)
-        # self._build_train_sheet(ws_train)
+        if ws_train is not None:
+            self._build_train_sheet(ws_train)
         # self._build_total_sheet(ws_total, inner_total_row, tax_total_row, bid_date)
         # self._build_opening_sheet(ws_open, bid_date)
 
