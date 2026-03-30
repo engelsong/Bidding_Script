@@ -16,13 +16,13 @@ if doc_name is None:
     raise FileNotFoundError('No project*.docx file found in current directory.')
 
 project = Project(doc_name)
-# # project.show_info()
+# project.show_info()
 # directory = Directory(project)
 # try:
 #     directory.make_dir()
 # except FileExistsError:
 #     pass
-
+#
 # content = Content(project)
 # content.generate_content()
 

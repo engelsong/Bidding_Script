@@ -123,8 +123,8 @@ class Quotation:
             "序号",
             "品名",
             "HS编码",
-            "数量",
             "单位",
+            "数量",
             "规格",
             "检验标准",
             "品牌",
@@ -166,14 +166,14 @@ class Quotation:
             ws[f"A{idx}"] = items[key][-1]
             ws[f"B{idx}"] = items[key][0]
             ws[f"C{idx}"] = items[key][1]
-            ws[f"D{idx}"] = self._parse_quantity(items[key][2])
-            ws[f"E{idx}"] = items[key][3]
+            ws[f"D{idx}"] = items[key][2]
+            ws[f"E{idx}"] = self._parse_quantity(items[key][3])
             ws[f"F{idx}"] = items[key][4]
             ws[f"G{idx}"] = items[key][5]
             ws[f"H{idx}"] = ""
             ws[f"I{idx}"] = ""
             ws[f"J{idx}"] = 1
-            ws[f"K{idx}"] = f"=D{idx}*J{idx}"
+            ws[f"K{idx}"] = f"=J{idx}*E{idx}"
             ws[f"L{idx}"] = ""
             ws[f"M{idx}"] = ""
             ws[f"N{idx}"] = "无"
@@ -771,7 +771,7 @@ class Quotation:
             row = item_start + i - 1
             ws[f"B{row}"] = f'=物资选择!A{i}&"."&物资选择!B{i}'
             ws[f"C{row}"] = f"=INDEX(全部厂家备用!J:J,物资选择!C{i})"
-            ws[f"D{row}"] = f"=INDEX(全部厂家备用!D:D,物资选择!C{i})"
+            ws[f"D{row}"] = f"=INDEX(全部厂家备用!E:E,物资选择!C{i})"
             ws[f"E{row}"] = f"=C{row}*D{row}"
             ws[f"F{row}"] = 0
             ws[f"G{row}"] = 0
@@ -809,6 +809,7 @@ class Quotation:
         ws[f"L{stamp_row}"].alignment = self.left
         ws[f"M{date_row}"] = "日期："
         ws[f"M{date_row}"].font = self.header_font
+        ws[f"M{date_row}"].number_format = 'yyyy"年"m"月"d"日"'
         ws[f"M{date_row}"].alignment = self.left
         ws[f"N{date_row}"] = self._parse_date(self.project.date)
         ws[f"N{date_row}"].font = self.header_font
@@ -839,35 +840,21 @@ class Quotation:
         return total_row
 
 
-    def _build_tax_sheet(self, ws, item_count: int, inner_total_row: int) -> int:
+    def _build_tax_sheet(self, ws, item_count: int, inner_total_row: int) -> None:
         ws.title = "3.各项物资退抵税额表"
         self._set_columns(
             ws,
-            {"A": 8, "B": 26, "C": 20, "D": 16, "E": 16, "F": 16, "G": 16, "H": 18},
+            {
+                "A": 8.0,
+                "B": 28,
+                "C": 28,
+                "D": 15,
+                "E": 16,
+                "F": 15,
+                "G": 20,
+                "H": 22,
+            },
         )
-
-        ws.merge_cells("A1:H1")
-        ws["A1"] = "三.增值税和消费税退抵税额表"
-        ws["A1"].font = self.title_font
-        ws["A1"].alignment = self.center
-        ws.merge_cells("A2:H2")
-        ws["A2"] = "报价单位：人民币元（保留小数点后两位）"
-        ws["A2"].font = self.normal_font
-        ws["A2"].alignment = self.left
-
-        headers = [
-            "序号",
-            "品名",
-            "购买价款",
-            "退抵增值税率(%)",
-            "退抵增值税额",
-            "退抵消费税率(%)",
-            "退抵消费税额",
-            "退抵税总额",
-        ]
-        for c, h in enumerate(headers, start=1):
-            ws.cell(3, c, h)
-        self._style_row(ws, 3, 1, 8, header=True)
 
         item_start = 4
         item_end = item_start + item_count - 1
@@ -875,12 +862,52 @@ class Quotation:
         insurance_row = item_end + 2
         inspect_row = item_end + 3
         total_row = item_end + 4
+        promise_row = total_row + 1
+        spacer_row = total_row + 2
+        stamp_row = total_row + 3
+        date_row = total_row + 4
+
+        ws.row_dimensions[1].height = 40
+        ws.row_dimensions[2].height = 30
+        ws.row_dimensions[3].height = 75
+        for r in range(item_start, total_row + 1):
+            ws.row_dimensions[r].height = 25
+        ws.row_dimensions[promise_row].height = 57
+        ws.row_dimensions[spacer_row].height = 22
+        ws.row_dimensions[stamp_row].height = 30
+        ws.row_dimensions[date_row].height = 35
+
+        ws.merge_cells("A1:H1")
+        ws.merge_cells("A2:C2")
+        ws.merge_cells(f"A{promise_row}:H{promise_row}")
+
+        ws["A1"] = "三、增值税和消费税退抵税额表"
+        ws["A1"].font = self.title_font
+        ws["A1"].alignment = self.center
+
+        ws["A2"] = "报价单位：人民币元（保留小数点后两位）"
+        ws["A2"].font = self.normal_font
+        ws["A2"].alignment = self.left
+
+        headers = [
+            "序号",
+            "品名",
+            "投标人向物资生产供货企业、运输企业、第三方检验机构、土建涉及施工单位支付的含税商品或服务购买价款",
+            "投标人预期可获得的退抵增值税率(%)",
+            "投标人预期可获得的退抵增值税额",
+            "投标人预期可获得的退抵消费税率(%)",
+            "投标人预期可获得的退抵消费税额",
+            "投标人预期可获得的退抵增值税和消费税总额",
+        ]
+        for c, h in enumerate(headers, start=1):
+            ws.cell(3, c, h)
+        self._style_row(ws, 3, 1, 8, header=True)
 
         for i in range(1, item_count + 1):
             row = item_start + i - 1
             ws[f"A{row}"] = f"=物资选择!A{i}"
             ws[f"B{row}"] = f"=物资选择!B{i}"
-            ws[f"C{row}"] = f"='2.物资对内分项报价表'!E{3+i}"
+            ws[f"C{row}"] = f"='2.物资对内分项报价表'!E{4 + i}"
             ws[f"D{row}"] = 13
             ws[f"E{row}"] = f"=ROUND(C{row}/(1+D{row}/100)*D{row}/100,2)"
             ws[f"F{row}"] = 0
@@ -899,26 +926,23 @@ class Quotation:
         ws[f"B{insurance_row}"] = "保险"
         ws[f"C{insurance_row}"] = f"='2.物资对内分项报价表'!J{inner_total_row}"
         ws[f"D{insurance_row}"] = 0
-        ws[f"E{insurance_row}"] = (
-            f"=ROUND(C{insurance_row}/(1+D{insurance_row}/100)*D{insurance_row}/100,2)"
-        )
+        ws[f"E{insurance_row}"] = f"=ROUND(C{insurance_row}/(1+D{insurance_row}/100)*D{insurance_row}/100,2)"
         ws[f"F{insurance_row}"] = 0
-        ws[f"G{insurance_row}"] = (
-            f"=ROUND(C{insurance_row}/(1+F{insurance_row}/100)*F{insurance_row}/100,2)"
-        )
+        ws[f"G{insurance_row}"] = f"=ROUND(C{insurance_row}/(1+F{insurance_row}/100)*F{insurance_row}/100,2)"
         ws[f"H{insurance_row}"] = f"=E{insurance_row}+G{insurance_row}"
 
         ws[f"B{inspect_row}"] = "第三方检验"
         ws[f"C{inspect_row}"] = f"='2.物资对内分项报价表'!I{inner_total_row}"
         ws[f"D{inspect_row}"] = 0
-        ws[f"E{inspect_row}"] = (
-            f"=ROUND(C{inspect_row}/(1+D{inspect_row}/100)*D{inspect_row}/100,2)"
-        )
+        ws[f"E{inspect_row}"] = f"=ROUND(C{inspect_row}/(1+D{inspect_row}/100)*D{inspect_row}/100,2)"
         ws[f"F{inspect_row}"] = 0
-        ws[f"G{inspect_row}"] = (
-            f"=ROUND(C{inspect_row}/(1+F{inspect_row}/100)*F{inspect_row}/100,2)"
-        )
+        ws[f"G{inspect_row}"] = f"=ROUND(C{inspect_row}/(1+F{inspect_row}/100)*F{inspect_row}/100,2)"
         ws[f"H{inspect_row}"] = f"=E{inspect_row}+G{inspect_row}"
+
+        for row in range(4, total_row + 1):
+            for col in "CEGH":
+                ws[f"{col}{row}"].number_format = "#,##0.00"
+
         self._style_row(ws, trans_row, 1, 8, header=False)
         self._style_row(ws, insurance_row, 1, 8, header=False)
         self._style_row(ws, inspect_row, 1, 8, header=False)
@@ -933,8 +957,28 @@ class Quotation:
         ws[f"E{total_row}"] = f"=SUM(E{item_start}:E{inspect_row})"
         ws[f"G{total_row}"] = f"=SUM(G{item_start}:G{inspect_row})"
         ws[f"H{total_row}"] = f"=SUM(H{item_start}:H{inspect_row})"
-        self._style_row(ws, total_row, 3, 8, header=False)
-        return total_row
+        self._style_row(ws, total_row, 3, 8, header=True)
+
+        ws[f"A{promise_row}"] = "我公司承诺：如我公司中标, 我公司出现与投标文件承诺的增值税或消费税退税或抵扣内容不一致的情况，实际退税或抵扣金额高于投标文件中承诺金额的，我公司会将超出部分及其孳息退回采购人指定账户，并接受违规、违约处理。"
+        ws[f"A{promise_row}"].font = self.header_font
+        ws[f"A{promise_row}"].alignment = self.left
+        ws[f"A{promise_row}"].border = self.border
+        for c in range(2, 9):
+            ws.cell(promise_row, c).border = self.border
+
+        ws[f"G{stamp_row}"] = "投标人盖章："
+        ws[f"G{stamp_row}"].font = self.header_font
+        ws[f"G{stamp_row}"].alignment = self.left
+        ws[f"G{date_row}"] = "日期："
+        ws[f"G{date_row}"].font = self.header_font
+        ws[f"G{date_row}"].alignment = self.left
+        ws[f"H{date_row}"] = self._parse_date(self.project.date)
+        ws[f"H{date_row}"].font = self.header_font
+        ws[f"H{date_row}"].alignment = self.right
+        ws[f"H{date_row}"].number_format = 'yyyy"年"m"月"d"日"'
+
+
+        self._tax_total_row = total_row
 
     def _build_tech_sheet(self, ws) -> None:
         ws.title = "4.技术服务费报价表"
@@ -1131,12 +1175,12 @@ class Quotation:
 
         wb = Workbook()
         ws_all = wb.active
-        ws_fee = wb.create_sheet("费用输入")
+        ws_fee = wb.create_sheet("运输费用")
         ws_other_fee = wb.create_sheet("其他费用")
         # ws_open = wb.create_sheet("3.开标一览表")
         # ws_total = wb.create_sheet("1.投标报价总表")
         ws_inner = wb.create_sheet("2.物资对内分项报价表")
-        # ws_tax = wb.create_sheet("3.各项物资退抵税额表")
+        ws_tax = wb.create_sheet("3.各项物资退抵税额表")
         # ws_tech = wb.create_sheet("4.技术服务费报价表")
         # ws_train = wb.create_sheet("5.来华培训费报价表")
         ws_pick = wb.create_sheet("物资选择")
@@ -1146,7 +1190,7 @@ class Quotation:
         self._build_fee_input(ws_fee, items)
         self._build_other_fees(ws_other_fee)
         inner_total_row = self._build_inner_quote(ws_inner, len(items))
-        # tax_total_row = self._build_tax_sheet(ws_tax, len(items), inner_total_row)
+        self._build_tax_sheet(ws_tax, len(items), inner_total_row)
         # self._build_tech_sheet(ws_tech)
         # self._build_train_sheet(ws_train)
         # self._build_total_sheet(ws_total, inner_total_row, tax_total_row, bid_date)
