@@ -1633,6 +1633,88 @@ class Quotation:
         ws[f"G{date_row}"].alignment = center_wrap
         ws[f"G{date_row}"].number_format = 'yyyy"年"m"月"d"日"'
 
+    def _build_system_sheet(self, ws) -> None:
+        ws.title = "16.三体系一览表"
+        supplier_last_row = max(getattr(self, "_all_suppliers_last_row", 1), 1)
+        main_items = list(getattr(self.project, "main_item", []) or [])
+
+        self._set_columns(
+            ws,
+            {
+                "A": 6.0,
+                "B": 10,
+                "C": 18,
+                "D": 18,
+                "E": 18,
+                "F": 28,
+                "G": 34.0,
+                "H": 25,
+                "I": 20,
+            },
+        )
+
+        ws.merge_cells("A1:I1")
+        ws.row_dimensions[1].height = 45
+        ws.row_dimensions[2].height = 40
+
+        ws["A1"] = "十七、主要标的的生产企业质量管理、环境管理和职业健康安全管理体系一览表"
+        ws["A1"].font = Font(name="黑体", size=18)
+        ws["A1"].alignment = self.center
+
+        headers = [
+            "序号",
+            "物资序号",
+            "物资名称",
+            "品牌",
+            "型号",
+            "生产企业名称",
+            "认证文件名称",
+            "认证文件编号",
+            "证书效期",
+        ]
+        for col, value in enumerate(headers, start=1):
+            ws.cell(2, col, value)
+            ws.cell(2, col).font = self.header_font
+            ws.cell(2, col).alignment = self.center
+            ws.cell(2, col).border = self.border
+
+        cert_rows = [
+            ("质量管理体系认证证书", "R", "S"),
+            ("环境管理体系认证证书", "T", "U"),
+            ("职业健康安全管理体系认证证书", "V", "W"),
+        ]
+
+        current_row = 3
+        for item_no in main_items:
+            for cert_name, cert_col, date_col in cert_rows:
+                ws.row_dimensions[current_row].height = 30
+                ws[f"A{current_row}"] = "=ROW()-2"
+                ws[f"B{current_row}"] = item_no
+                ws[f"C{current_row}"] = f'=INDIRECT("物资选择!B"&B{current_row})'
+                ws[f"D{current_row}"] = (
+                    f'=INDEX(全部厂家备用!H$1:H${supplier_last_row},INDIRECT("物资选择!C"&B{current_row}))'
+                )
+                ws[f"E{current_row}"] = (
+                    f'=INDEX(全部厂家备用!I$1:I${supplier_last_row},INDIRECT("物资选择!C"&B{current_row}))'
+                )
+                ws[f"F{current_row}"] = (
+                    f'=INDEX(全部厂家备用!L$1:L${supplier_last_row},INDIRECT("物资选择!C"&B{current_row}))'
+                )
+                ws[f"G{current_row}"] = cert_name
+                ws[f"H{current_row}"] = (
+                    f'=INDEX(全部厂家备用!{cert_col}$1:{cert_col}${supplier_last_row},INDIRECT("物资选择!C"&B{current_row}))'
+                )
+                ws[f"I{current_row}"] = (
+                    f'=INDEX(全部厂家备用!{date_col}$1:{date_col}${supplier_last_row},INDIRECT("物资选择!C"&B{current_row}))'
+                )
+
+                for col in range(1, 10):
+                    cell = ws.cell(current_row, col)
+                    cell.font = self.normal_font
+                    cell.alignment = self.center
+                    cell.border = self.border
+                current_row += 1
+
 
     def generate(self, filename: Optional[str] = None) -> str:
         items = self.project.commodities
@@ -1643,12 +1725,13 @@ class Quotation:
         ws_fee = wb.create_sheet("运输费用")
         ws_other_fee = wb.create_sheet("其他费用")
         ws_open = wb.create_sheet("3.开标一览表")
-        ws_total = wb.create_sheet("1.投标报价总表")
         ws_procurement = wb.create_sheet("2.采购需求偏离表(物资部分)")
+        ws_total = wb.create_sheet("1.投标报价总表")
         ws_inner = wb.create_sheet("2.物资对内分项报价表")
         ws_tax = wb.create_sheet("3.各项物资退抵税额表")
         ws_tech = wb.create_sheet("4.技术服务费报价表") if self.project.is_tech else None
         ws_train = wb.create_sheet("5.来华培训费报价表") if self.project.is_cc else None
+        ws_system = wb.create_sheet("16.三体系一览表")
         ws_pick = wb.create_sheet("物资选择")
 
         self._build_all_suppliers(ws_all, items)
@@ -1658,6 +1741,7 @@ class Quotation:
         self._build_other_fees(ws_other_fee)
         inner_total_row = self._build_inner_quote(ws_inner, len(items))
         self._build_tax_sheet(ws_tax, len(items), inner_total_row)
+        self._build_system_sheet(ws_system)
         if ws_tech is not None:
             self._build_tech_sheet(ws_tech)
         if ws_train is not None:
