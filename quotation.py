@@ -16,6 +16,7 @@ class Quotation:
     def __init__(self, project) -> None:
         self.project = project
         self._all_suppliers_last_row = 1
+        self._total_sheet_total_row = 9
 
         self.title_font = Font(name="宋体", size=16, bold=True)
         self.header_font = Font(name="宋体", size=12, bold=True)
@@ -1311,6 +1312,7 @@ class Quotation:
             ws[f"D{idx}"].alignment = self.left
 
         total_row = detail_start + len(rows)
+        self._total_sheet_total_row = total_row
         note_row = total_row + 1
         option1_row = total_row + 2
         option2_row = total_row + 3
@@ -1419,7 +1421,7 @@ class Quotation:
 
         ws["B4"] = "小写￥"
         ws["A5"] = "中国海外经济合作有限公司"
-        ws["B5"] = "='1.投标报价总表'!C9"
+        ws["B5"] = f"='1.投标报价总表'!C{self._total_sheet_total_row}"
         ws["C5"] = self.project.trans_time
         ws["C5"].fill = self.import_fill
         ws["D5"] = ""
@@ -1440,6 +1442,197 @@ class Quotation:
         ws["C10"].alignment = self.right
         ws["D10"].alignment = self.left
 
+    def _build_procurement_deviation_sheet(self, ws, items: Dict) -> None:
+        ws.title = "2.采购需求偏离表(物资部分)"
+        supplier_last_row = max(getattr(self, "_all_suppliers_last_row", 1), 1)
+        sorted_keys = sorted(items.keys())
+        small_font = Font(name="宋体", size=10)
+        title_font = Font(name="宋体", size=14, bold=True)
+        left_wrap = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        center_wrap = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        footer_font = Font(name="宋体", size=14, bold=True)
+
+        self._set_columns(
+            ws,
+            {
+                "A": 7,
+                "B": 10,
+                "C": 19,
+                "D": 60,
+                "E": 19,
+                "F": 60,
+                "G": 10,
+                "H": 10,
+            },
+        )
+
+        ws.row_dimensions[1].height = 32
+        ws.row_dimensions[2].height = 24
+        ws.row_dimensions[3].height = 24
+        ws.row_dimensions[4].height = 28
+        ws.row_dimensions[5].height = 28
+
+        merged_ranges = [
+            "A1:H1",
+            "A2:B2",
+            "A3:B3",
+            "C3:D3",
+            "C4:D4",
+            "E4:F4",
+            "A5:H5",
+        ]
+
+        label_rows = [
+            "品名",
+            "数量及单位",
+            "HS编码",
+            "具体规格、参数和功能表述",
+            "检验标准",
+            "品牌",
+            "生产企业",
+            "供货企业",
+            "强制性认证取证情况",
+        ]
+        response_labels = [
+            "品名",
+            "数量及单位",
+            "HS编码",
+            "产品型号、参数和功能表述",
+            "检验标准",
+            "品牌",
+            "生产企业",
+            "供货企业",
+            "强制性认证取证情况",
+        ]
+
+        for idx, key in enumerate(sorted_keys):
+            row_base = 6 + idx * 9
+            spec_text = items[key][4] if len(items[key]) > 4 else ""
+            spec_lines = max(str(spec_text).count("\n") + 1, 1)
+            for offset in range(9):
+                ws.row_dimensions[row_base + offset].height = 15
+            ws.row_dimensions[row_base + 3].height = max(30, spec_lines * 14)
+            merged_ranges.append(f"A{row_base}:A{row_base + 8}")
+            merged_ranges.append(f"B{row_base}:B{row_base + 8}")
+
+        blank_row = 6 + len(sorted_keys) * 9
+        stamp_row = blank_row + 1
+        date_row = blank_row + 2
+        ws.row_dimensions[stamp_row].height = 20
+        ws.row_dimensions[date_row].height = 20
+        merged_ranges.append(f"G{date_row}:H{date_row}")
+
+        for cell_range in merged_ranges:
+            ws.merge_cells(cell_range)
+
+        ws["A1"] = "采购需求偏离表（物资部分）"
+        ws["A1"].font = title_font
+        ws["A1"].alignment = center_wrap
+
+        ws["A2"] = "招标编号："
+        ws["C2"] = self.project.code
+        ws["A3"] = "项目名称："
+        ws["C3"] = self.project.name
+        ws["A4"] = "序号"
+        ws["B4"] = "采购需求条目"
+        ws["C4"] = "招标文件要求"
+        ws["E4"] = "投标响应内容"
+        ws["G4"] = "偏离情况"
+        ws["H4"] = "说明"
+        ws["A5"] = "承担《供货清单(一)》中各项物资生产组货任务"
+
+        for ref in ["A2", "C2", "A3", "C3"]:
+            ws[ref].font = self.header_font
+            ws[ref].alignment = left_wrap
+
+        for row in range(4, blank_row):
+            for col in range(1, 9):
+                cell = ws.cell(row, col)
+                cell.font = self.normal_font
+                cell.alignment = center_wrap
+                cell.border = self.border
+
+        for row in range(4, blank_row):
+            for col in [3, 4, 5, 6]:
+                ws.cell(row, col).alignment = left_wrap
+
+        for idx, key in enumerate(sorted_keys):
+            row_base = 6 + idx * 9
+            item = items[key]
+            item_name = item[0] if len(item) > 0 else ""
+            hs_code = item[1] if len(item) > 1 else ""
+            quantity = item[2] if len(item) > 2 else ""
+            unit = item[3] if len(item) > 3 else ""
+            spec_text = item[4] if len(item) > 4 else ""
+            inspection = item[5] if len(item) > 5 else ""
+
+            ws[f"A{row_base}"] = idx + 1
+            ws[f"B{row_base}"] = f'="物资"&A{row_base}'
+
+            for offset, label in enumerate(label_rows):
+                ws[f"C{row_base + offset}"] = label
+            for offset, label in enumerate(response_labels):
+                ws[f"E{row_base + offset}"] = label
+
+            ws[f"D{row_base}"] = item_name
+            ws[f"D{row_base + 1}"] = f"{unit}{quantity}"
+            ws[f"D{row_base + 2}"] = hs_code
+            ws[f"D{row_base + 3}"] = spec_text
+            ws[f"D{row_base + 4}"] = inspection
+            ws[f"D{row_base + 5}"].border = self.diag_border
+            ws[f"D{row_base + 6}"].border = self.diag_border
+            ws[f"D{row_base + 7}"].border = self.diag_border
+            ws[f"D{row_base + 8}"] = "无"
+
+            ws[f"F{row_base}"] = f'=INDIRECT("物资选择!B"&A{row_base})'
+            ws[f"F{row_base + 1}"] = (
+                f'=INDEX(全部厂家备用!E$1:E${supplier_last_row},INDIRECT("物资选择!C"&A{row_base}))'
+                f'&INDEX(全部厂家备用!D$1:D${supplier_last_row},INDIRECT("物资选择!C"&A{row_base}))'
+            )
+            ws[f"F{row_base + 2}"] = (
+                f'=INDEX(全部厂家备用!C$1:C${supplier_last_row},INDIRECT("物资选择!C"&A{row_base}))'
+            )
+            ws[f"F{row_base + 3}"] = (
+                f'="型号："&INDEX(全部厂家备用!I$1:I${supplier_last_row},INDIRECT("物资选择!C"&A{row_base}))'
+                f'&CHAR(10)&INDEX(全部厂家备用!F$1:F${supplier_last_row},INDIRECT("物资选择!C"&A{row_base}))'
+            )
+            ws[f"F{row_base + 4}"] = (
+                f'=INDEX(全部厂家备用!G$1:G${supplier_last_row},INDIRECT("物资选择!C"&A{row_base}))'
+            )
+            ws[f"F{row_base + 5}"] = (
+                f'=INDEX(全部厂家备用!H$1:H${supplier_last_row},INDIRECT("物资选择!C"&A{row_base}))'
+            )
+            ws[f"F{row_base + 6}"] = (
+                f'=INDEX(全部厂家备用!L$1:L${supplier_last_row},INDIRECT("物资选择!C"&A{row_base}))'
+            )
+            ws[f"F{row_base + 7}"] = (
+                f'=INDEX(全部厂家备用!M$1:M${supplier_last_row},INDIRECT("物资选择!C"&A{row_base}))'
+            )
+            ws[f"F{row_base + 8}"] = (
+                f'=INDEX(全部厂家备用!O$1:O${supplier_last_row},INDIRECT("物资选择!C"&A{row_base}))'
+            )
+            ws[f"H{row_base + 3}"] = (
+                f'=INDEX(全部厂家备用!AB$1:AB${supplier_last_row},INDIRECT("物资选择!C"&A{row_base}))'
+            )
+
+            for offset in range(9):
+                ws[f"G{row_base + offset}"] = "无偏离"
+
+            for ref in [f"D{row_base + 3}", f"F{row_base + 3}", f"H{row_base + 3}"]:
+                ws[ref].font = small_font
+                ws[ref].alignment = left_wrap
+
+        ws[f"F{stamp_row}"] = "投标人盖章："
+        ws[f"F{date_row}"] = "日期："
+        ws[f"G{date_row}"] = self._parse_date(self.project.date)
+        ws[f"F{stamp_row}"].font = footer_font
+        ws[f"F{date_row}"].font = footer_font
+        ws[f"G{date_row}"].font = footer_font
+        ws[f"F{stamp_row}"].alignment = self.right
+        ws[f"F{date_row}"].alignment = self.right
+        ws[f"G{date_row}"].alignment = center_wrap
+        ws[f"G{date_row}"].number_format = 'yyyy"年"m"月"d"日"'
+
 
     def generate(self, filename: Optional[str] = None) -> str:
         items = self.project.commodities
@@ -1451,6 +1644,7 @@ class Quotation:
         ws_other_fee = wb.create_sheet("其他费用")
         ws_open = wb.create_sheet("3.开标一览表")
         ws_total = wb.create_sheet("1.投标报价总表")
+        ws_procurement = wb.create_sheet("2.采购需求偏离表(物资部分)")
         ws_inner = wb.create_sheet("2.物资对内分项报价表")
         ws_tax = wb.create_sheet("3.各项物资退抵税额表")
         ws_tech = wb.create_sheet("4.技术服务费报价表") if self.project.is_tech else None
@@ -1459,6 +1653,7 @@ class Quotation:
 
         self._build_all_suppliers(ws_all, items)
         self._build_selector(ws_pick, items)
+        self._build_procurement_deviation_sheet(ws_procurement, items)
         self._build_fee_input(ws_fee, items)
         self._build_other_fees(ws_other_fee)
         inner_total_row = self._build_inner_quote(ws_inner, len(items))
@@ -1471,6 +1666,9 @@ class Quotation:
         self._build_opening_sheet(ws_open, bid_date)
 
         wb.calculation.fullCalcOnLoad = True
+        wb.calculation.iterate = True
+        wb.calculation.iterateCount = 100
+        wb.calculation.iterateDelta = 0.001
         if not filename:
             filename = f"投标报价表-{self._safe_name(self.project.name)}.xlsx"
         wb.save(filename)
