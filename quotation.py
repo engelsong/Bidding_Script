@@ -19,7 +19,7 @@ class Quotation:
 
         self.title_font = Font(name="宋体", size=16, bold=True)
         self.header_font = Font(name="宋体", size=12, bold=True)
-        self.normal_font = Font(name="宋体", size=11)
+        self.normal_font = Font(name="宋体", size=12)
         self.center = Alignment(horizontal="center", vertical="center", wrap_text=True)
         self.left = Alignment(horizontal="left", vertical="center", wrap_text=True)
         self.right = Alignment(horizontal="right", vertical="center", wrap_text=True)
@@ -1094,15 +1094,14 @@ class Quotation:
         ws["G14"].font = self.header_font
         ws["H14"].font = self.header_font
 
-        stamp_font = Font(name="宋体", size=14, bold=True)
         ws["G17"] = "投标人盖章："
-        ws["G17"].font = stamp_font
+        ws["G17"].font = self.header_font
         ws["G17"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
         ws["G18"] = "日期："
-        ws["G18"].font = stamp_font
+        ws["G18"].font = self.header_font
         ws["G18"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
         ws["H18"] = self._parse_date(self.project.date)
-        ws["H18"].font = stamp_font
+        ws["H18"].font = self.header_font
         ws["H18"].alignment = self.right
         ws["H18"].number_format = 'yyyy"年"m"月"d"日"'
 
@@ -1250,66 +1249,17 @@ class Quotation:
 
         self._style_row(ws, 17, 1, 8, header=True)
 
-        stamp_font = Font(name="宋体", size=11, bold=True)
         ws["F19"] = "投标人盖章："
-        ws["F19"].font = stamp_font
+        ws["F19"].font = self.header_font
         ws["F19"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
         ws["F20"] = "日期："
-        ws["F20"].font = stamp_font
+        ws["F20"].font = self.header_font
         ws["F20"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
         ws["G20"] = self._parse_date(self.project.date)
-        ws["G20"].font = stamp_font
+        ws["G20"].font = self.header_font
         ws["G20"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
         ws["G20"].number_format = 'yyyy"年"m"月"d"日"'
 
-    def _build_total_sheet(
-        self, ws, inner_total_row: int, tax_total_row: int, bid_date: date
-    ) -> None:
-        ws.title = "1.投标报价总表"
-        self._set_columns(ws, {"A": 8, "B": 40, "C": 20, "D": 24})
-
-        ws.merge_cells("A1:D1")
-        ws["A1"] = "一.投标报价总表"
-        ws["A1"].font = self.title_font
-        ws["A1"].alignment = self.center
-
-        ws.merge_cells("A2:D2")
-        ws["A2"] = "报价单位：人民币元（保留小数点后两位）"
-        ws["A2"].font = self.normal_font
-        ws["A2"].alignment = self.left
-
-        headers = ["序号", "费用项目", "合计金额", "备注"]
-        for c, h in enumerate(headers, start=1):
-            ws.cell(3, c, h)
-        self._style_row(ws, 3, 1, 4, header=True)
-
-        rows = [
-            ("一", "全部物资价格", f"='2.物资对内分项报价表'!N{inner_total_row}", f"{self.project.trans}{self.project.destination}价"),
-            ("二", "技术服务费", "='4.技术服务费报价表'!H14", ""),
-            ("三", "来华培训和接待费", "='5.来华培训费报价表'!G14", ""),
-            ("四", "其他费用-安防费用", "=费用输入!B5", ""),
-            ("五", "增值税和消费税退抵税额", f"='3.各项物资退抵税额表'!H{tax_total_row}", ""),
-        ]
-        for i, (no, item, amount, note) in enumerate(rows, start=4):
-            ws[f"A{i}"] = no
-            ws[f"B{i}"] = item
-            ws[f"C{i}"] = amount
-            ws[f"D{i}"] = note
-            self._style_row(ws, i, 1, 4, header=False)
-            ws[f"B{i}"].alignment = self.left
-
-        ws["B9"] = "共计"
-        ws["C9"] = "=SUM(C4:C7)-C8"
-        self._style_row(ws, 9, 2, 3, header=False)
-        ws["B9"].font = self.header_font
-        ws["C9"].font = self.header_font
-
-        ws["C13"] = "投标人盖章："
-        ws["C14"] = "日期："
-        ws["D14"] = bid_date
-        ws["C13"].font = self.normal_font
-        ws["C14"].font = self.normal_font
-        ws["D14"].font = self.normal_font
 
     def _build_opening_sheet(self, ws, bid_date: date) -> None:
         ws.title = "3.开标一览表"
@@ -1346,6 +1296,125 @@ class Quotation:
         ws["C9"].font = self.normal_font
         ws["D9"].font = self.normal_font
 
+    def _build_total_sheet(
+        self, ws, inner_total_row: int, tax_total_row: int, bid_date: date
+    ) -> None:
+        ws.title = "1.投标报价总表"
+        self._set_columns(ws, {"A": 10.0, "B": 35.0, "C": 24, "D": 20})
+
+        ws.row_dimensions[1].height = 50
+        ws.row_dimensions[2].height = 40
+        ws.row_dimensions[3].height = 40
+
+        rows = [
+            (
+                "一",
+                "全部物资价格（含商品购买价款、国内运杂费、包装费、保管费、物资检验费、运输保险费、国外运费、实施服务费、税金）",
+                f"='2.物资对内分项报价表'!N{inner_total_row}",
+                f"{self.project.trans}{self.project.destination}",
+            )
+        ]
+        seq = ["一", "二", "三", "四", "五"]
+        if self.project.is_tech:
+            rows.append((seq[len(rows)], "技术服务费", "='4.技术服务费报价表'!H14", ""))
+        if self.project.is_cc:
+            train_sheet = "5.来华培训费报价表" if self.project.is_tech else "4.来华培训费报价表"
+            rows.append((seq[len(rows)], "来华培训和接待费", f"='{train_sheet}'!G17", ""))
+        rows.append((seq[len(rows)], "其他费用-安防费用", "=其他费用!B11", ""))
+        rows.append(
+            (
+                seq[len(rows)],
+                "《供货清单（一）》中各项物资以及全部物资运输、检验、配套土建（本项目不适用）等的购买价款中的增值税和消费税退抵税总额",
+                f"='3.各项物资退抵税额表'!H{tax_total_row}",
+                "",
+            )
+        )
+
+        detail_start = 4
+        detail_heights = [108, 108, 64, 64, 122]
+        for idx, (no, item, amount, note) in enumerate(rows, start=detail_start):
+            ws.row_dimensions[idx].height = detail_heights[idx - detail_start]
+            ws[f"A{idx}"] = no
+            ws[f"B{idx}"] = item
+            ws[f"C{idx}"] = amount
+            ws[f"D{idx}"] = note
+            self._style_row(ws, idx, 1, 4, header=False)
+            ws[f"B{idx}"].alignment = self.left
+            ws[f"C{idx}"].alignment = self.right
+            ws[f"C{idx}"].number_format = '¥#,##0.00'
+            ws[f"D{idx}"].alignment = self.left
+
+        total_row = detail_start + len(rows)
+        note_row = total_row + 1
+        option1_row = total_row + 2
+        option2_row = total_row + 3
+        stamp_row = total_row + 4
+        date_row = total_row + 5
+
+        ws.row_dimensions[total_row].height = 40
+        ws.row_dimensions[note_row].height = 70
+        ws.row_dimensions[option1_row].height = 50
+        ws.row_dimensions[option2_row].height = 50
+        ws.row_dimensions[stamp_row].height = 30
+        ws.row_dimensions[date_row].height = 30
+
+        ws.merge_cells("A1:D1")
+        ws.merge_cells("A2:D2")
+        ws.merge_cells(f"A{note_row}:D{note_row}")
+        ws.merge_cells(f"B{option1_row}:D{option1_row}")
+        ws.merge_cells(f"B{option2_row}:D{option2_row}")
+
+        ws["A1"] = "一.投标报价总表"
+        ws["A1"].font = self.title_font
+        ws["A1"].alignment = self.center
+
+        ws["A2"] = "报价单位：人民币元（保留小数点后两位）"
+        ws["A2"].font = self.normal_font
+        ws["A2"].alignment = self.left
+
+        for c, h in enumerate(["序号", "费用项目", "合计金额", "备注"], start=1):
+            ws.cell(3, c, h)
+        self._style_row(ws, 3, 1, 4, header=True)
+
+        tax_row = detail_start + len(rows) - 1
+        positive_end_row = tax_row - 1
+        ws[f"B{total_row}"] = "共计"
+        ws[f"C{total_row}"] = f"=SUM(C{detail_start}:C{positive_end_row})-C{tax_row}"
+        self._style_row(ws, total_row, 2, 3, header=False)
+        ws[f"B{total_row}"].font = self.header_font
+        ws[f"C{total_row}"].font = self.header_font
+        ws[f"B{total_row}"].alignment = self.center
+        ws[f"C{total_row}"].alignment = self.right
+        ws[f"C{total_row}"].number_format = '¥#,##0.00'
+        ws[f"D{total_row}"].border = self.border
+
+        ws[f"A{note_row}"] = "如中标，采购人向我公司支付中标价中的外汇时，汇率按照以下第 一 种方式确定（投标人未明确汇率确定方式的，则视投标人选择第一种方式；如中标，投标人须在与采购人商签合同期间，书面向采购人提供收款账户开户银行信息）："
+        ws[f"A{note_row}"].font = self.normal_font
+        ws[f"A{note_row}"].alignment = self.left
+        for col in range(1, 5):
+            ws.cell(note_row, col).border = self.border
+
+        ws[f"A{option1_row}"] = "一"
+        ws[f"B{option1_row}"] = "按照结算当日，我公司收款账户开户银行公布的现汇卖出价为准。我公司收款账户开户银行为：招商银行北京分行"
+        self._style_row(ws, option1_row, 1, 4, header=False)
+        ws[f"B{option1_row}"].alignment = self.left
+
+        ws[f"A{option2_row}"] = "二"
+        ws[f"B{option2_row}"] = "以我公司本次投标中使用的汇率，即       ，作为采购人向我公司结算外汇时使用的汇率。"
+        self._style_row(ws, option2_row, 1, 4, header=False)
+        ws[f"B{option2_row}"].alignment = self.left
+
+        ws[f"C{stamp_row}"] = "投标人盖章："
+        ws[f"C{stamp_row}"].font = self.header_font
+        ws[f"C{stamp_row}"].alignment = self.right
+        ws[f"C{date_row}"] = "日期："
+        ws[f"C{date_row}"].font = self.header_font
+        ws[f"C{date_row}"].alignment = self.right
+        ws[f"D{date_row}"] = bid_date
+        ws[f"D{date_row}"].alignment = self.right
+        ws[f"D{date_row}"].font = self.header_font
+        ws[f"D{date_row}"].number_format = 'yyyy"年"m"月"d"日"'
+
     def generate(self, filename: Optional[str] = None) -> str:
         items = self.project.commodities
         bid_date = self._parse_date(self.project.date)
@@ -1355,7 +1424,7 @@ class Quotation:
         ws_fee = wb.create_sheet("运输费用")
         ws_other_fee = wb.create_sheet("其他费用")
         # ws_open = wb.create_sheet("3.开标一览表")
-        # ws_total = wb.create_sheet("1.投标报价总表")
+        ws_total = wb.create_sheet("1.投标报价总表")
         ws_inner = wb.create_sheet("2.物资对内分项报价表")
         ws_tax = wb.create_sheet("3.各项物资退抵税额表")
         ws_tech = wb.create_sheet("4.技术服务费报价表") if self.project.is_tech else None
@@ -1372,7 +1441,7 @@ class Quotation:
             self._build_tech_sheet(ws_tech)
         if ws_train is not None:
             self._build_train_sheet(ws_train)
-        # self._build_total_sheet(ws_total, inner_total_row, tax_total_row, bid_date)
+        self._build_total_sheet(ws_total, inner_total_row, self._tax_total_row, bid_date)
         # self._build_opening_sheet(ws_open, bid_date)
 
         wb.calculation.fullCalcOnLoad = True
