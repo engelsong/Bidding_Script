@@ -631,6 +631,7 @@ class Quotation:
             "G10": "=E10-F10+G9",
             "H10": "=IF(G10>0,G10*B$13/12,0)",
             "A11": "合计",
+            "B11": "=SUM(B9:B10)",
             "D11": 8,
             "E11": 0,
             "F11": 0,
@@ -1261,41 +1262,6 @@ class Quotation:
         ws["G20"].number_format = 'yyyy"年"m"月"d"日"'
 
 
-    def _build_opening_sheet(self, ws, bid_date: date) -> None:
-        ws.title = "3.开标一览表"
-        self._set_columns(ws, {"A": 20, "B": 24, "C": 48, "D": 24})
-
-        ws.merge_cells("A1:D1")
-        ws["A1"] = "三.开标一览表"
-        ws["A1"].font = self.title_font
-        ws["A1"].alignment = self.center
-
-        ws["A2"] = "招标编号："
-        ws["B2"] = self.project.code
-        ws["C2"] = f"项目名称：{self.project.name}"
-        for c in ("A2", "B2", "C2"):
-            ws[c].font = self.normal_font
-
-        headers = ["投标人名称", "投标报价", "启运或运抵时间", "备注"]
-        for col, name in zip(("A", "B", "C", "D"), headers):
-            ws[f"{col}3"] = name
-        self._style_row(ws, 3, 1, 4, header=True)
-
-        ws["A4"] = "中国海外经济合作有限公司"
-        ws["B4"] = "='1.投标报价总表'!C9"
-        ws["C4"] = self.project.trans_time
-        ws["D4"] = ""
-        self._style_row(ws, 4, 1, 4, header=False)
-        ws["A4"].alignment = self.left
-        ws["C4"].alignment = self.left
-
-        ws["C8"] = "投标人盖章："
-        ws["C9"] = "日期："
-        ws["D9"] = bid_date
-        ws["C8"].font = self.normal_font
-        ws["C9"].font = self.normal_font
-        ws["D9"].font = self.normal_font
-
     def _build_total_sheet(
         self, ws, inner_total_row: int, tax_total_row: int, bid_date: date
     ) -> None:
@@ -1388,8 +1354,8 @@ class Quotation:
         ws[f"C{total_row}"].number_format = '¥#,##0.00'
         ws[f"D{total_row}"].border = self.border
 
-        ws[f"A{note_row}"] = "如中标，采购人向我公司支付中标价中的外汇时，汇率按照以下第 一 种方式确定（投标人未明确汇率确定方式的，则视投标人选择第一种方式；如中标，投标人须在与采购人商签合同期间，书面向采购人提供收款账户开户银行信息）："
-        ws[f"A{note_row}"].font = self.normal_font
+        ws[f"A{note_row}"] = "如中标，采购人向我公司支付中标价中的外汇时，汇率按照以下第一种方式确定（投标人未明确汇率确定方式的，则视投标人选择第一种方式；如中标，投标人须在与采购人商签合同期间，书面向采购人提供收款账户开户银行信息）："
+        ws[f"A{note_row}"].font = self.header_font
         ws[f"A{note_row}"].alignment = self.left
         for col in range(1, 5):
             ws.cell(note_row, col).border = self.border
@@ -1400,7 +1366,7 @@ class Quotation:
         ws[f"B{option1_row}"].alignment = self.left
 
         ws[f"A{option2_row}"] = "二"
-        ws[f"B{option2_row}"] = "以我公司本次投标中使用的汇率，即       ，作为采购人向我公司结算外汇时使用的汇率。"
+        ws[f"B{option2_row}"] = "以我公司本次投标中使用的汇率，即    ，作为采购人向我公司结算外汇时使用的汇率。"
         self._style_row(ws, option2_row, 1, 4, header=False)
         ws[f"B{option2_row}"].alignment = self.left
 
@@ -1415,6 +1381,66 @@ class Quotation:
         ws[f"D{date_row}"].font = self.header_font
         ws[f"D{date_row}"].number_format = 'yyyy"年"m"月"d"日"'
 
+    def _build_opening_sheet(self, ws, bid_date: date) -> None:
+        ws.title = "3.开标一览表"
+        self._set_columns(ws, {"A": 19.375, "B": 25.0, "C": 56.25, "D": 25.0})
+
+        ws.row_dimensions[1].height = 50
+        ws.row_dimensions[2].height = 30
+        ws.row_dimensions[3].height = 30
+        ws.row_dimensions[4].height = 30
+        ws.row_dimensions[5].height = 60
+        ws.row_dimensions[9].height = 25
+        ws.row_dimensions[10].height = 25
+
+        ws.merge_cells("A1:D1")
+        ws.merge_cells("C2:D2")
+        ws.merge_cells("A3:A4")
+        ws.merge_cells("C3:C4")
+        ws.merge_cells("D3:D4")
+
+        ws["A1"] = "三、开标一览表"
+        ws["A1"].font = self.title_font
+        ws["A1"].alignment = self.center
+
+        ws["A2"] = "招标编号："
+        ws["B2"] = self.project.code
+        ws["C2"] = f"项目名称：{self.project.name}"
+        for ref in ("A2", "B2", "C2"):
+            ws[ref].font = self.normal_font
+            ws[ref].alignment = self.right if ref in ("A2", "C2") else self.left
+
+        ws["A3"] = "投标人名称"
+        ws["B3"] = "投标报价"
+        ws["C3"] = "启运或运抵时间"
+        ws["D3"] = "备注"
+        self._style_row(ws, 3, 1, 4, header=True)
+        self._style_row(ws, 4, 1, 4, header=True)
+
+        ws["B4"] = "小写￥"
+        ws["A5"] = "中国海外经济合作有限公司"
+        ws["B5"] = "='1.投标报价总表'!C9"
+        ws["C5"] = self.project.trans_time
+        ws["C5"].fill = self.import_fill
+        ws["D5"] = ""
+        self._style_row(ws, 5, 1, 4, header=False)
+        ws["A5"].alignment = self.left
+        ws["C5"].alignment = self.left
+        ws["B5"].alignment = self.right
+        ws["B5"].number_format = '¥#,##0.00'
+
+        ws["C9"] = "投标人盖章："
+        ws["C10"] = "日期："
+        ws["D10"] = bid_date
+        ws["C9"].font = self.header_font
+        ws["C10"].font = self.header_font
+        ws["D10"].font = self.header_font
+        ws["D10"].number_format = 'yyyy"年"m"月"d"日"'
+        ws["C9"].alignment = self.right
+        ws["C10"].alignment = self.right
+        ws["D10"].alignment = self.left
+
+
     def generate(self, filename: Optional[str] = None) -> str:
         items = self.project.commodities
         bid_date = self._parse_date(self.project.date)
@@ -1423,7 +1449,7 @@ class Quotation:
         ws_all = wb.active
         ws_fee = wb.create_sheet("运输费用")
         ws_other_fee = wb.create_sheet("其他费用")
-        # ws_open = wb.create_sheet("3.开标一览表")
+        ws_open = wb.create_sheet("3.开标一览表")
         ws_total = wb.create_sheet("1.投标报价总表")
         ws_inner = wb.create_sheet("2.物资对内分项报价表")
         ws_tax = wb.create_sheet("3.各项物资退抵税额表")
@@ -1442,7 +1468,7 @@ class Quotation:
         if ws_train is not None:
             self._build_train_sheet(ws_train)
         self._build_total_sheet(ws_total, inner_total_row, self._tax_total_row, bid_date)
-        # self._build_opening_sheet(ws_open, bid_date)
+        self._build_opening_sheet(ws_open, bid_date)
 
         wb.calculation.fullCalcOnLoad = True
         if not filename:
