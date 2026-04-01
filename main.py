@@ -3,6 +3,7 @@ from directory import Directory
 from cover import Cover
 from content import Content
 from quotation import Quotation
+from separate import Separate
 from os import listdir
 import re
 
@@ -27,7 +28,10 @@ project = Project(doc_name)
 # content.generate_content()
 
 quotation = Quotation(project)
-quotation.generate()
+quotation_filename = quotation.generate()
+#
+# separate = Separate()
+# separate.generate(quotation_filename)
 
 # cover = Cover(project)
 # cover.generate()
