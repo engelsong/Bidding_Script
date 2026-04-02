@@ -6,7 +6,6 @@ from typing import Dict, List, Optional
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.workbook.properties import CalcProperties
 
 
 
@@ -227,32 +226,32 @@ class Quotation:
         self._set_columns(
             ws,
             {
-                "A": 14.0,
-                "B": 13.125,
-                "C": 13.875,
-                "D": 9.25,
-                "E": 16.125,
-                "F": 6.75,
-                "G": 15.125,
-                "H": 16.0,
-                "I": 11.625,
-                "J": 8.0,
-                "K": 19.25,
-                "L": 7.375,
-                "M": 6.0,
-                "N": 24.375,
-                "O": 10.0,
-                "P": 10.75,
-                "T": 14.375,
-                "U": 16.0,
-                "V": 14.375,
-                "W": 9.75,
+                "A": 12,
+                "B": 12,
+                "C": 14,
+                "D": 10,
+                "E": 18,
+                "F": 6,
+                "G": 12,
+                "H": 12,
+                "I": 14,
+                "J": 10,
+                "K": 18,
+                "L": 6,
+                "M": 6,
+                "N": 20,
+                "O": 10,
+                "P": 10,
+                "T": 14,
+                "U": 16,
+                "V": 14,
+                "W": 10,
             },
         )
 
-        ws.row_dimensions[1].height = 29.25
+        ws.row_dimensions[1].height = 30
         for r in range(2, row_num + 1):
-            ws.row_dimensions[r].height = 24.0
+            ws.row_dimensions[r].height = 26
 
 
         merged_ranges = [
@@ -319,7 +318,7 @@ class Quotation:
             "R2", "S2", "T2", "U2", "V2", "w2",
         ]
         for cell_ref in header_cells:
-            ws[cell_ref].fill = self.header_fill
+            # ws[cell_ref].fill = self.header_fill
             ws[cell_ref].font = self.header_font
 
         entries = {
@@ -772,8 +771,8 @@ class Quotation:
         for i in range(1, item_count + 1):
             row = item_start + i - 1
             ws[f"B{row}"] = f'=物资选择!A{i}&"."&物资选择!B{i}'
-            ws[f"C{row}"] = f"=INDEX(全部厂家备用!J:J,物资选择!C{i})"
-            ws[f"D{row}"] = f"=INDEX(全部厂家备用!E:E,物资选择!C{i})"
+            ws[f"C{row}"] = f"=INDEX(全部厂家备用!J1:J{item_count + 5},物资选择!C{i})"
+            ws[f"D{row}"] = f"=INDEX(全部厂家备用!E1:E{item_count + 5},物资选择!C{i})"
             ws[f"E{row}"] = f"=C{row}*D{row}"
             ws[f"F{row}"] = 0
             ws[f"G{row}"] = 0
