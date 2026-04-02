@@ -1366,6 +1366,7 @@ class Quotation:
         ws[f"C{total_row}"].alignment = self.right
         ws[f"C{total_row}"].number_format = '¥#,##0.00'
         ws[f"D{total_row}"].border = self.border
+        ws[f"A{total_row}"].border = self.border
 
         ws[f"A{note_row}"] = "如中标，采购人向我公司支付中标价中的外汇时，汇率按照以下第一种方式确定（投标人未明确汇率确定方式的，则视投标人选择第一种方式；如中标，投标人须在与采购人商签合同期间，书面向采购人提供收款账户开户银行信息）："
         ws[f"A{note_row}"].font = self.header_font
