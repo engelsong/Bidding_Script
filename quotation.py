@@ -780,7 +780,7 @@ class Quotation:
             ws[f"C{row}"] = f"=INDEX(全部厂家备用!J1:J{item_count + 5},物资选择!C{i})"
             ws[f"D{row}"] = f"=INDEX(全部厂家备用!E1:E{item_count + 5},物资选择!C{i})"
             ws[f"E{row}"] = f"=C{row}*D{row}"
-            ws[f"F{row}"] = 0
+            ws[f"F{row}"] = f"=ROUND(E{row}/E${total_row}*F${summary_row},2)"
             ws[f"G{row}"] = 0
             ws[f"H{row}"] = 0
             ws[f"I{row}"] = f"=ROUND(E{row}/E${total_row}*I${summary_row},2)"
@@ -827,7 +827,13 @@ class Quotation:
         ws[f"J{summary_row}"] = "=其他费用!B7"
         ws[f"K{summary_row}"] = "=运输费用!K16+运输费用!E18"
         ws[f"L{summary_row}"] = f"=L{service_row}"
-        ws[f"M{summary_row}"] = f"=ROUND((SUM(E{total_row}:K{total_row}))*0.0003,2)"
+        totalprice_row = 7
+        if self.project.is_tech:
+            totalprice_row += 1
+        if self.project.is_cc:
+            totalprice_row += 1
+
+        ws[f"M{summary_row}"] = f"=ROUND((SUM(E{total_row}:K{total_row})+'1.投标报价总表'!C{totalprice_row})*0.0003+'1.投标报价总表'!C{totalprice_row}/1.13*0.13,2)"
         ws[f"N{summary_row}"] = f"=SUM(E{total_row}:M{total_row})"
         ws[f"L{service_row}"] = (
             f"=IF(E{total_row}>50000000,(E{total_row}-50000000)*0.0075+835000,"
@@ -924,7 +930,7 @@ class Quotation:
 
         ws[f"B{trans_row}"] = "运输"
         ws[f"C{trans_row}"] = f"='2.物资对内分项报价表'!K{inner_total_row}"
-        ws[f"D{trans_row}"] = 0
+        ws[f"D{trans_row}"] = 6
         ws[f"E{trans_row}"] = f"=ROUND(C{trans_row}/(1+D{trans_row}/100)*D{trans_row}/100,2)"
         ws[f"F{trans_row}"] = 0
         ws[f"G{trans_row}"] = f"=ROUND(C{trans_row}/(1+F{trans_row}/100)*F{trans_row}/100,2)"
@@ -932,7 +938,7 @@ class Quotation:
 
         ws[f"B{insurance_row}"] = "保险"
         ws[f"C{insurance_row}"] = f"='2.物资对内分项报价表'!J{inner_total_row}"
-        ws[f"D{insurance_row}"] = 0
+        ws[f"D{insurance_row}"] = 6
         ws[f"E{insurance_row}"] = f"=ROUND(C{insurance_row}/(1+D{insurance_row}/100)*D{insurance_row}/100,2)"
         ws[f"F{insurance_row}"] = 0
         ws[f"G{insurance_row}"] = f"=ROUND(C{insurance_row}/(1+F{insurance_row}/100)*F{insurance_row}/100,2)"
@@ -940,7 +946,7 @@ class Quotation:
 
         ws[f"B{inspect_row}"] = "第三方检验"
         ws[f"C{inspect_row}"] = f"='2.物资对内分项报价表'!I{inner_total_row}"
-        ws[f"D{inspect_row}"] = 0
+        ws[f"D{inspect_row}"] = 6
         ws[f"E{inspect_row}"] = f"=ROUND(C{inspect_row}/(1+D{inspect_row}/100)*D{inspect_row}/100,2)"
         ws[f"F{inspect_row}"] = 0
         ws[f"G{inspect_row}"] = f"=ROUND(C{inspect_row}/(1+F{inspect_row}/100)*F{inspect_row}/100,2)"
