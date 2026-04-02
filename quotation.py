@@ -174,7 +174,9 @@ class Quotation:
             ws[f"H{idx}"] = ""
             ws[f"I{idx}"] = ""
             ws[f"J{idx}"] = 1
+            ws[f"J{idx}"].number_format = '#,##0.00'
             ws[f"K{idx}"] = f"=J{idx}*E{idx}"
+            ws[f"K{idx}"].number_format = '#,##0.00'
             ws[f"L{idx}"] = ""
             ws[f"M{idx}"] = ""
             ws[f"N{idx}"] = "无"
@@ -370,7 +372,7 @@ class Quotation:
             "C8": 0,
             "D8": "=J5",
             "E8": "=C8*D8",
-            "A9": "云邸报告非",
+            "A9": "运抵报告费",
             "B9": "20GP",
             "C9": 0,
             "D9": "=J3",
@@ -479,6 +481,7 @@ class Quotation:
 
         # Populate M/N/O from project commodities (rows 3-14).
 
+
         keys = sorted(items.keys())
         for row in range(3, row_num):
             idx = row - 3
@@ -487,6 +490,8 @@ class Quotation:
                 ws[f"M{row}"] = items[key][-1]
                 ws[f"N{row}"] = items[key][0]
                 ws[f"O{row}"] = self._parse_quantity(items[key][2])
+                ws[f"T{row}"] = f"=PRODUCT(Q{row}:S{row})"
+                ws[f"V{row}"] = f"=U{row}*P{row}"
 
 
     def _build_other_fees(self, ws) -> None:
@@ -494,12 +499,12 @@ class Quotation:
         self._set_columns(
             ws,
             {
-                "A": 25.75,
-                "B": 23.875,
-                "E": 28.5,
-                "F": 27.75,
-                "G": 26.125,
-                "H": 23.875,
+                "A": 25,
+                "B": 24,
+                "E": 28,
+                "F": 28,
+                "G": 26,
+                "H": 24,
             },
         )
         for row in range(1, 15):
@@ -569,6 +574,7 @@ class Quotation:
         ws["E2"].alignment = Alignment(horizontal="center", vertical="center")
         ws["E2"].border = Border(bottom=Side(style="thin", color="000000"))
         ws["F1"].alignment = Alignment(horizontal="center", vertical="center")
+        ws["F1"].number_format = "#,##0.00"
         ws["F2"].alignment = Alignment(horizontal="center", vertical="center")
         ws["H16"].font = bold_11
 
@@ -651,7 +657,7 @@ class Quotation:
             "G13": "=E13-F13+G12",
             "H13": "=IF(G13>0,G13*B$13/12,0)",
             "A14": "资金占用费总额",
-            "B14": "=H16",
+            "B14": "=round(H16,0)",
             "D14": 11,
             "E14": 0,
             "F14": 0,
@@ -1706,6 +1712,7 @@ class Quotation:
                 ws[f"I{current_row}"] = (
                     f'=INDEX(全部厂家备用!{date_col}$1:{date_col}${supplier_last_row},INDIRECT("物资选择!C"&B{current_row}))'
                 )
+                ws[f"I{current_row}"].number_format = 'yyyy"年"m"月"d"日"'
 
                 for col in range(1, 10):
                     cell = ws.cell(current_row, col)
