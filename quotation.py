@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -11,6 +11,13 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 class Quotation:
     """通过 project 实例创建报价表（不依赖模板）。"""
+
+    MONEY_FORMAT = "#,##0.00"
+    RMB_FORMAT = '¥#,##0.00'
+    USD_FORMAT = '$#,##0.00'
+    DATE_FORMAT = 'yyyy"年"m"月"d"日"'
+    INTEGER_FORMAT = "0"
+    PERCENT_FORMAT = "0.00%"
 
     def __init__(self, project) -> None:
         self.project = project
@@ -24,10 +31,12 @@ class Quotation:
         self.left = Alignment(horizontal="left", vertical="center", wrap_text=True)
         self.right = Alignment(horizontal="right", vertical="center", wrap_text=True)
         thin = Side(style="thin", color="000000")
+        self.thin_side = thin
         self.border = Border(left=thin, right=thin, top=thin, bottom=thin)
         self.diag_border = Border(left=thin, right=thin, top=thin, bottom=thin, diagonal=thin, diagonalUp=True)
         self.import_fill = PatternFill("solid", fgColor="FFFF00")
         self.header_fill = PatternFill("solid", fgColor="808080")
+        self.yellow_fill = PatternFill("solid", fgColor="FFFFFF00")
 
     @staticmethod
     def _safe_name(name: str) -> str:  # 用于生成文件名，过滤掉无法使用的字符
@@ -63,17 +72,85 @@ class Quotation:
             return None
         return int(m.group(0))
 
+    def _font(self, size: int = 12, *, name: str = "宋体", bold: bool = False) -> Font:
+        return Font(name=name, size=size, bold=bold)
+
+    def _alignment(self, horizontal: str = "center", *, wrap: bool = True) -> Alignment:
+        return Alignment(horizontal=horizontal, vertical="center", wrap_text=wrap)
+
+    def _border(self, **sides) -> Border:
+        return Border(**{name: self.thin_side for name in sides})
+
     def _set_columns(self, ws, widths: Dict[str, float]) -> None:  #设置当前worksheet的列宽
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
+
+    def _set_row_heights(self, ws, heights: Dict[int, float]) -> None:
+        for row, height in heights.items():
+            ws.row_dimensions[row].height = height
+
+    def _merge_ranges(self, ws, ranges: Iterable[str]) -> None:
+        for cell_range in ranges:
+            ws.merge_cells(cell_range)
+
+    def _write_entries(self, ws, entries: Dict[str, object]) -> None:
+        for cell_ref, value in entries.items():
+            ws[cell_ref] = value
+
+    def _style_cell(
+        self,
+        cell,
+        *,
+        font: Optional[Font] = None,
+        alignment: Optional[Alignment] = None,
+        border: Optional[Border] = None,
+        fill: Optional[PatternFill] = None,
+        number_format: Optional[str] = None,
+    ) -> None:
+        if font is not None:
+            cell.font = font
+        if alignment is not None:
+            cell.alignment = alignment
+        if border is not None:
+            cell.border = border
+        if fill is not None:
+            cell.fill = fill
+        if number_format is not None:
+            cell.number_format = number_format
+
+    def _style_range(
+        self,
+        ws,
+        row_start: int,
+        row_end: int,
+        col_start: int,
+        col_end: int,
+        *,
+        font: Optional[Font] = None,
+        alignment: Optional[Alignment] = None,
+        border: Optional[Border] = None,
+        number_formats: Optional[Dict[int, str]] = None,
+    ) -> None:
+        for row in range(row_start, row_end + 1):
+            for col in range(col_start, col_end + 1):
+                self._style_cell(
+                    ws.cell(row, col),
+                    font=font,
+                    alignment=alignment,
+                    border=border,
+                    number_format=(number_formats or {}).get(col),
+                )
 
     def _style_row(self, ws, row: int, col_start: int, col_end: int, header: bool = False) -> None:
         #  用于修改指定worksheet行号的从几列到几列的样式
         for col in range(col_start, col_end + 1):
             cell = ws.cell(row, col)
-            cell.font = self.header_font if header else self.normal_font
-            cell.alignment = self.center
-            cell.border = self.border
+            self._style_cell(
+                cell,
+                font=self.header_font if header else self.normal_font,
+                alignment=self.center,
+                border=self.border,
+            )
             # if header:
             #     cell.fill = self.header_fill
 
@@ -251,9 +328,7 @@ class Quotation:
             },
         )
 
-        ws.row_dimensions[1].height = 30
-        for r in range(2, row_num + 1):
-            ws.row_dimensions[r].height = 26
+        self._set_row_heights(ws, {1: 30, **{r: 26 for r in range(2, row_num + 1)}})
 
 
         merged_ranges = [
@@ -276,42 +351,46 @@ class Quotation:
             "G16:I16",
             # f"M{row_num}:N{row_num}",
         ]
-        for rng in merged_ranges:
-            ws.merge_cells(rng)
+        self._merge_ranges(ws, merged_ranges)
 
-        # Base grid border/alignment for the three visible blocks.
+        self._style_range(
+            ws,
+            1,
+            18,
+            1,
+            5,
+            font=self.normal_font,
+            alignment=self.center,
+            border=self.border,
+            number_formats={3: self.RMB_FORMAT, 5: self.RMB_FORMAT},
+        )
         for row in range(1, 19):
-            for col in range(1, 6):
-                c = ws.cell(row=row, column=col)
-                c.border = self.border
-                if col == 5:
-                    c.alignment = self.right
-                else:
-                    c.alignment = self.center
-                c.font = self.normal_font
-                if col == 3 or col == 5:
-                    c.number_format = '¥#,##0.00'
+            ws.cell(row, 5).alignment = self.right
 
+        self._style_range(
+            ws,
+            1,
+            17,
+            7,
+            11,
+            font=self.normal_font,
+            alignment=self.center,
+            border=self.border,
+            number_formats={9: self.USD_FORMAT, 11: self.RMB_FORMAT},
+        )
         for row in range(1, 18):
-            for col in range(7, 12):
-                c = ws.cell(row=row, column=col)
-                c.border = self.border
-                if col == 11:
-                    c.alignment = self.right
-                else:
-                    c.alignment = self.center
-                c.font = self.normal_font
-                if col == 9:
-                    c.number_format = '$#,##0.00'
-                if col == 11:
-                    c.number_format = '¥#,##0.00'
+            ws.cell(row, 11).alignment = self.right
 
-        for row in range(1, row_num + 1):
-            for col in range(13, 24):
-                c = ws.cell(row=row, column=col)
-                c.border = self.border
-                c.alignment = self.center
-                c.font = self.normal_font
+        self._style_range(
+            ws,
+            1,
+            row_num,
+            13,
+            23,
+            font=self.normal_font,
+            alignment=self.center,
+            border=self.border,
+        )
         ws["G17"].number_format = '"运输汇率："0.0000'
 
         # Section headers and row-2 headers use dark gray fill.
@@ -321,7 +400,7 @@ class Quotation:
         ]
         for cell_ref in header_cells:
             # ws[cell_ref].fill = self.header_fill
-            ws[cell_ref].font = self.header_font
+            self._style_cell(ws[cell_ref], font=self.header_font)
 
         entries = {
             "A1": "国内运费",
@@ -476,8 +555,7 @@ class Quotation:
             f"T{row_num}": f"=SUM(T3:T{row_num - 1})",
             f"V{row_num}": f"=SUM(V3:V{row_num - 1})",
         }
-        for cell_ref, value in entries.items():
-            ws[cell_ref] = value
+        self._write_entries(ws, entries)
 
         # Populate M/N/O from project commodities (rows 3-14).
 
@@ -507,75 +585,60 @@ class Quotation:
                 "H": 24,
             },
         )
-        for row in range(1, 15):
-            ws.row_dimensions[row].height = 24.0
-        ws.row_dimensions[15].height = 24.75
-        ws.row_dimensions[16].height = 24.75
+        self._set_row_heights(ws, {**{row: 24.0 for row in range(1, 15)}, 15: 24.75, 16: 24.75})
 
-        for rng in ("A1:B1", "A4:B4", "A8:B8", "A12:B12"):
-            ws.merge_cells(rng)
+        self._merge_ranges(ws, ("A1:B1", "A4:B4", "A8:B8", "A12:B12"))
 
-        bold_11 = Font(name=self.normal_font.name, size=11, bold=True)
-        bold_12 = Font(name=self.normal_font.name, size=12, bold=True)
-        right = Alignment(horizontal="right", vertical="center")
-        center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        thin = Side(style="thin", color="000000")
-        yellow_fill = PatternFill("solid", fgColor="FFFFFF00")
+        bold_11 = self._font(11, bold=True)
+        bold_12 = self._font(12, bold=True)
+        right = self._alignment("right", wrap=False)
+        center = self.center
 
         yellow_amount = {"B2", "B9", "B10"}
         percent_yellow = {"B13", "B6"}
         right_money = {"B2", "B3", "B5", "B6", "B7", "B9", "B10", "B11", "B14"}
 
         for row in range(2, 15):
-            ws[f"A{row}"].border = self.border
-            ws[f"A{row}"].alignment = center
-            ws[f"A{row}"].font = bold_12
-            ws[f"B{row}"].border = self.border
-            ws[f"B{row}"].alignment = right if f"B{row}" in right_money else center
-            ws[f"B{row}"].font = bold_12 if row in (2, 14) else self.normal_font
+            self._style_cell(ws[f"A{row}"], font=bold_12, alignment=center, border=self.border)
+            self._style_cell(
+                ws[f"B{row}"],
+                font=bold_12 if row in (2, 14) else self.normal_font,
+                alignment=right if f"B{row}" in right_money else center,
+                border=self.border,
+            )
             if f"B{row}" in yellow_amount or f"B{row}" in percent_yellow:
-                ws[f"B{row}"].fill = yellow_fill
+                ws[f"B{row}"].fill = self.yellow_fill
             if f"B{row}" in right_money:
-                ws[f"B{row}"].number_format = "#,##0.00"
+                ws[f"B{row}"].number_format = self.MONEY_FORMAT
             if f"B{row}" in percent_yellow:
-                ws[f"B{row}"].number_format = "0.00%"
+                ws[f"B{row}"].number_format = self.PERCENT_FORMAT
 
         for row in range(3, 17):
             for col in ("D", "E", "F", "G", "H"):
                 cell = ws[f"{col}{row}"]
-                cell.border = self.border
-                cell.font = self.normal_font
-                cell.alignment = center if col == "D" else right
+                self._style_cell(
+                    cell,
+                    font=bold_12 if col == "D" else self.normal_font,
+                    alignment=center if col == "D" else right,
+                    border=self.border,
+                )
                 if col in ("E", "F", "G", "H") and row >= 4:
-                    cell.number_format = "#,##0.00"
-                if col == "D":
-                    cell.font = bold_12
+                    cell.number_format = self.MONEY_FORMAT
 
-        ws["D16"].font = bold_12
-        ws["E3"].font = bold_12
-        ws["F3"].font = bold_12
-        ws["G3"].font = bold_12
-        ws["H3"].font = bold_12
+        for ref in ("D16", "E3", "F3", "G3", "H3"):
+            ws[ref].font = bold_12
 
-        ws["A1"].border = self.border
-        ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
-        ws["A1"].font = bold_11
-        ws["A4"].border = self.border
-        ws["A4"].alignment = Alignment(horizontal="center", vertical="center")
-        ws["A4"].font = bold_11
-        ws["B1"].border = Border(top=thin, right=thin, bottom=thin)
-        ws["B4"].border = Border(top=thin, right=thin, bottom=thin)
-        ws["B8"].border = Border(top=thin, right=thin, bottom=thin)
-        ws["B12"].border = Border(top=thin, right=thin, bottom=thin)
+        for ref in ("A1", "A4"):
+            self._style_cell(ws[ref], font=bold_11, alignment=self._alignment("center", wrap=False), border=self.border)
+        for ref in ("B1", "B4", "B8", "B12"):
+            ws[ref].border = self._border(top=True, right=True, bottom=True)
 
-        ws["E1"].font = bold_11
-        ws["E1"].alignment = Alignment(horizontal="center", vertical="center")
-        ws["E2"].font = bold_11
-        ws["E2"].alignment = Alignment(horizontal="center", vertical="center")
-        ws["E2"].border = Border(bottom=Side(style="thin", color="000000"))
-        ws["F1"].alignment = Alignment(horizontal="center", vertical="center")
-        ws["F1"].number_format = "#,##0.00"
-        ws["F2"].alignment = Alignment(horizontal="center", vertical="center")
+        for ref in ("E1", "E2"):
+            self._style_cell(ws[ref], font=bold_11, alignment=self._alignment("center", wrap=False))
+        ws["E2"].border = self._border(bottom=True)
+        ws["F1"].alignment = self._alignment("center", wrap=False)
+        ws["F1"].number_format = self.MONEY_FORMAT
+        ws["F2"].alignment = self._alignment("center", wrap=False)
         ws["H16"].font = bold_11
 
         entries = {
@@ -671,21 +734,16 @@ class Quotation:
             "D16": "合计",
             "H16": "=SUM(H4:H15)",
         }
-        for cell_ref, value in entries.items():
-            ws[cell_ref] = value
+        self._write_entries(ws, entries)
 
-        ws["B14"].alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+        ws["B14"].alignment = self.right
         ws["B2"].font = bold_11
         ws["B13"].alignment = Alignment(vertical="center")
         ws["E3"].alignment = center
         ws["F3"].alignment = center
         ws["G3"].alignment = center
         ws["H3"].alignment = center
-        ws["E3"].border = Border(
-            left=thin,
-            right=thin,
-            bottom=thin,
-        )
+        ws["E3"].border = self._border(left=True, right=True, bottom=True)
         for ref in ("E16", "F16", "G16"):
             ws[ref].number_format = "General"
             ws[ref].alignment = Alignment()
@@ -1458,11 +1516,11 @@ class Quotation:
         ws.title = "2.采购需求偏离表(物资部分)"
         supplier_last_row = max(getattr(self, "_all_suppliers_last_row", 1), 1)
         sorted_keys = sorted(items.keys())
-        small_font = Font(name="宋体", size=10)
-        title_font = Font(name="宋体", size=14, bold=True)
-        left_wrap = Alignment(horizontal="left", vertical="center", wrap_text=True)
-        center_wrap = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        footer_font = Font(name="宋体", size=14, bold=True)
+        small_font = self._font(10)
+        title_font = self._font(14, bold=True)
+        left_wrap = self.left
+        center_wrap = self.center
+        footer_font = self._font(14, bold=True)
 
         self._set_columns(
             ws,
@@ -1478,11 +1536,7 @@ class Quotation:
             },
         )
 
-        ws.row_dimensions[1].height = 32
-        ws.row_dimensions[2].height = 24
-        ws.row_dimensions[3].height = 24
-        ws.row_dimensions[4].height = 28
-        ws.row_dimensions[5].height = 28
+        self._set_row_heights(ws, {1: 32, 2: 24, 3: 24, 4: 28, 5: 28})
 
         merged_ranges = [
             "A1:H1",
@@ -1521,8 +1575,7 @@ class Quotation:
             row_base = 6 + idx * 9
             spec_text = items[key][4] if len(items[key]) > 4 else ""
             spec_lines = max(str(spec_text).count("\n") + 1, 1)
-            for offset in range(9):
-                ws.row_dimensions[row_base + offset].height = 15
+            self._set_row_heights(ws, {row_base + offset: 15 for offset in range(9)})
             ws.row_dimensions[row_base + 3].height = max(30, spec_lines * 14)
             merged_ranges.append(f"A{row_base}:A{row_base + 8}")
             merged_ranges.append(f"B{row_base}:B{row_base + 8}")
@@ -1530,39 +1583,43 @@ class Quotation:
         blank_row = 6 + len(sorted_keys) * 9
         stamp_row = blank_row + 1
         date_row = blank_row + 2
-        ws.row_dimensions[stamp_row].height = 20
-        ws.row_dimensions[date_row].height = 20
+        self._set_row_heights(ws, {stamp_row: 20, date_row: 20})
         merged_ranges.append(f"G{date_row}:H{date_row}")
 
-        for cell_range in merged_ranges:
-            ws.merge_cells(cell_range)
+        self._merge_ranges(ws, merged_ranges)
 
-        ws["A1"] = "采购需求偏离表（物资部分）"
-        ws["A1"].font = title_font
-        ws["A1"].alignment = center_wrap
-
-        ws["A2"] = "招标编号："
-        ws["C2"] = self.project.code
-        ws["A3"] = "项目名称："
-        ws["C3"] = self.project.name
-        ws["A4"] = "序号"
-        ws["B4"] = "采购需求条目"
-        ws["C4"] = "招标文件要求"
-        ws["E4"] = "投标响应内容"
-        ws["G4"] = "偏离情况"
-        ws["H4"] = "说明"
-        ws["A5"] = "承担《供货清单(一)》中各项物资生产组货任务"
+        self._write_entries(
+            ws,
+            {
+                "A1": "采购需求偏离表（物资部分）",
+                "A2": "招标编号：",
+                "C2": self.project.code,
+                "A3": "项目名称：",
+                "C3": self.project.name,
+                "A4": "序号",
+                "B4": "采购需求条目",
+                "C4": "招标文件要求",
+                "E4": "投标响应内容",
+                "G4": "偏离情况",
+                "H4": "说明",
+                "A5": "承担《供货清单(一)》中各项物资生产组货任务",
+            },
+        )
+        self._style_cell(ws["A1"], font=title_font, alignment=center_wrap)
 
         for ref in ["A2", "C2", "A3", "C3"]:
-            ws[ref].font = self.header_font
-            ws[ref].alignment = left_wrap
+            self._style_cell(ws[ref], font=self.header_font, alignment=left_wrap)
 
-        for row in range(4, blank_row):
-            for col in range(1, 9):
-                cell = ws.cell(row, col)
-                cell.font = self.normal_font
-                cell.alignment = center_wrap
-                cell.border = self.border
+        self._style_range(
+            ws,
+            4,
+            blank_row - 1,
+            1,
+            8,
+            font=self.normal_font,
+            alignment=center_wrap,
+            border=self.border,
+        )
 
         for row in range(4, blank_row):
             for col in [3, 4, 5, 6]:

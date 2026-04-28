@@ -3,7 +3,6 @@ from docx import Document
 from docx.enum import text
 from docx.oxml.ns import qn
 from docx.shared import Pt
-from docx.text.paragraph import Paragraph
 
 
 class Cover:

@@ -70,7 +70,7 @@ def build_project_context(selected: Iterable[str]) -> Optional[Project]:
     if not any(option in {"1", "2", "3", "4"} for option in selected):
         return None
     return Project(find_project_doc())
-
+1
 
 def quotation_filename(project: Project) -> str:
     safe_name = Quotation._safe_name(project.name)
