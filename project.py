@@ -1,6 +1,14 @@
 from docx import Document
 
 
+def _parse_index_list(raw, *, sort_indices=False):
+    text = str(raw or '').strip()
+    if not text or text.lower() == 'n':
+        return []
+    indexes = list(map(int, text.split()))
+    return sorted(indexes) if sort_indices else indexes
+
+
 class Project(object):
     """通过Word文档建立项目对象保存项目信息"""
 
@@ -95,11 +103,8 @@ class Project(object):
             self.is_cc = True
             self.training_days = int(project_info[15])  # 读取来华陪训天数
             self.training_num = int(project_info[14])  # 读取来华培训人数
-        if project_info[-2] != '':
-            if project_info[-1] not in 'Nn':
-                self.qc += list(map(int, project_info[-1].split()))
-                self.qc.sort()
-        self.main_item = list(map(int, project_info[-1].split()))
+        self.qc = _parse_index_list(project_info[-2], sort_indices=True)
+        self.main_item = _parse_index_list(project_info[-1])
 
     def show_info(self):
         print('项目名称:', self.name)

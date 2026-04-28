@@ -239,10 +239,3 @@ class Content:
             filename = f'目录-{self._safe_name(self.project.name)}.xlsx'
         wb.save(filename)
         return filename
-
-
-
-        if not filename:
-            filename = f'quotation-{self._safe_name(self.project.name)}.xlsx'
-        wb.save(filename)
-        return filename

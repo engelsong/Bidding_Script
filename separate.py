@@ -1,7 +1,7 @@
 import re
 import subprocess
-from os import listdir
 from os.path import abspath
+from pathlib import Path
 from typing import List, Optional
 
 from openpyxl import load_workbook
@@ -22,9 +22,14 @@ class Separate:
         return result.strip()
 
     def _find_workbook_name(self) -> str:
-        for doc in listdir():
-            if re.match(self.workbook_pattern, doc):
-                return doc
+        matches = [
+            path
+            for path in Path.cwd().iterdir()
+            if path.is_file() and re.match(self.workbook_pattern, path.name)
+        ]
+        if matches:
+            latest = max(matches, key=lambda path: path.stat().st_mtime)
+            return latest.name
         raise FileNotFoundError("No 投标报价表-*.xlsx file found in current directory.")
 
     @staticmethod
